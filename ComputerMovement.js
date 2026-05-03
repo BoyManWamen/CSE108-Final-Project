@@ -7,18 +7,21 @@ const AI = {
   x: 250,
   y: 250,
 
-  team: "red",         
-  state: "ATTACK",     
+  team: "red",
+  state: "ATTACK",
 
-  angle: Math.random() * Math.PI * 2,
-  targetAngle: Math.random() * Math.PI * 2,
+  targetX: 250,
+  targetY: 250,
 
+  waypointX: null,
+  waypointY: null,
+  waypointRadius: 20,
+
+  angle: 0,
   speed: 1.5,
-  turnSpeed: 0.05,
+  captureRadius: 16,
 
-  captureRadius: 16,    
-
-  get enemyFlag()  { return this.team === "red" ? FLAGS.blue : FLAGS.red;  },
+  get enemyFlag()  { return this.team === "red" ? FLAGS.blue : FLAGS.red; },
   get ownFlag()    { return this.team === "red" ? FLAGS.red  : FLAGS.blue; },
   get homeBase()   { return this.team === "red"
     ? { x: FLAGS.red.homeX,  y: FLAGS.red.homeY  }
@@ -28,17 +31,13 @@ const AI = {
     return Math.hypot(a.x - b.x, a.y - b.y);
   },
 
-  angleToward(target) {
-    return Math.atan2(target.y - this.y, target.x - this.x);
-  },
-
   isCarryingFlag() {
     return this.enemyFlag.carriedBy === this;
   },
 
   tryPickUpFlag() {
     const flag = this.enemyFlag;
-    if (flag.carriedBy) return;                         
+    if (flag.carriedBy) return;
     if (this.dist(this, flag) < this.captureRadius) {
       flag.carriedBy = this;
     }
@@ -48,7 +47,7 @@ const AI = {
     if (!this.isCarryingFlag()) return;
     if (this.dist(this, this.homeBase) < this.captureRadius) {
       console.log(`${this.team} AI scored!`);
-      this.enemyFlag.x         = this.enemyFlag.homeX;  
+      this.enemyFlag.x         = this.enemyFlag.homeX;
       this.enemyFlag.y         = this.enemyFlag.homeY;
       this.enemyFlag.carriedBy = null;
     }
@@ -61,40 +60,58 @@ const AI = {
     }
   },
 
+  setWaypoint(goalX, goalY) {
+    const midX = (this.x + goalX) / 2;
+    const midY = (this.y + goalY) / 2;
+
+    this.waypointX = midX + (Math.random() - 0.5) * 200;
+    this.waypointY = midY + (Math.random() - 0.5) * 200;
+
+    this.waypointX = Math.max(10, Math.min(this.waypointX, COLS * TILE - 10));
+    this.waypointY = Math.max(10, Math.min(this.waypointY, ROWS * TILE - 10));
+  },
+
   think() {
     const ownFlagStolen = this.ownFlag.carriedBy !== null;
 
-    // 1. If carrying the flag → race home
+    let goalX, goalY;
+
     if (this.isCarryingFlag()) {
       this.state = "CARRY";
-      this.targetAngle = this.angleToward(this.homeBase);
-      return;
-    }
-
-    // 2. If our flag was stolen → go defend / chase the carrier
-    if (ownFlagStolen) {
+      goalX = this.homeBase.x;
+      goalY = this.homeBase.y;
+    } else if (ownFlagStolen) {
       this.state = "DEFEND";
-      // Chase whoever stole our flag
-      const thief = this.ownFlag.carriedBy;
-      this.targetAngle = this.angleToward(thief);
-      return;
+      goalX = this.ownFlag.carriedBy.x;
+      goalY = this.ownFlag.carriedBy.y;
+    } else {
+      this.state = "ATTACK";
+      goalX = this.enemyFlag.x;
+      goalY = this.enemyFlag.y;
     }
 
-    // 3. Otherwise → attack the enemy flag
-    this.state = "ATTACK";
-    this.targetAngle = this.angleToward(this.enemyFlag);
+    const atWaypoint = this.waypointX === null ||
+      Math.hypot(this.waypointX - this.x, this.waypointY - this.y) < this.waypointRadius;
 
-    // small random wobble so multiple bots don't stack perfectly
-    this.targetAngle += (Math.random() - 0.5) * 0.3;
+    if (atWaypoint) {
+      this.setWaypoint(goalX, goalY);
+    }
+
+    this.targetX = this.waypointX;
+    this.targetY = this.waypointY;
   },
 
   move() {
-    let diff = this.targetAngle - this.angle;
-    diff = Math.atan2(Math.sin(diff), Math.cos(diff));
-    this.angle += diff * this.turnSpeed;
+    const dx = this.targetX - this.x;
+    const dy = this.targetY - this.y;
+    const dist = Math.hypot(dx, dy);
 
-    this.x += Math.cos(this.angle) * this.speed;
-    this.y += Math.sin(this.angle) * this.speed;
+    if (dist > 1) {
+      this.x += (dx / dist) * this.speed;
+      this.y += (dy / dist) * this.speed;
+    }
+
+    this.angle = Math.atan2(dy, dx);
   },
 
   step() {
