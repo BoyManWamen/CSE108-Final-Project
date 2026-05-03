@@ -45,4 +45,34 @@ function draw() {
   ctx.setLineDash([]);
 }
 
-draw();
+
+// Drawing the AI onto the map
+function drawAI() {
+  ctx.beginPath();
+  ctx.arc(AI.x, AI.y, 8, 0, Math.PI * 2);
+  ctx.fillStyle = AI.team === "red" ? "#E24B4A" : "#378ADD";
+  ctx.fill();
+
+  ctx.beginPath ();
+  ctx.arc (
+    AI.x + Math.cos(AI.angle) * 10,
+    AI.y + Math.sin(AI.angle) * 10,
+    3, 0, Math.PI * 2
+  );
+
+  ctx.fillStyle = "white";
+  ctx. fill();
+
+  ctx.fillStyle = "white";
+  ctx.font = "10px monospace";
+  ctx.fillText(AI.state, AI.x + 12, AI.y - 8);
+}
+
+function gameLoop() {
+  draw ();
+  drawAI ();
+  AI.step();
+  requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
