@@ -78,3 +78,12 @@ function gameLoop() {
 
 initZones();
 gameLoop();
+
+
+window.addEventListener("keydown", (e) => {
+  if (e.key === "m" || e.key === "M") {
+    const types = ["color", "math", "sequence"];
+    const type  = types[Math.floor(Math.random() * types.length)];
+    Minigame.start("player", type);
+  }
+});
