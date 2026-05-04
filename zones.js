@@ -1,4 +1,4 @@
-const ZONE_COUNT      = 7;
+const ZONE_COUNT = 3 + Math.floor(Math.random() * 6);
 const ZONE_RADIUS     = 16;
 const ZONE_RESPAWN_MS = 3000;
 
@@ -25,11 +25,15 @@ function randomZonePosition() {
 function spawnZone() {
   const pos  = randomZonePosition();
   const type = ZONE_TYPES[Math.floor(Math.random() * ZONE_TYPES.length)]; 
+
+  const gameTypes = ["color", "math", "sequence"];
+  const gameType = gameTypes[Math.floor(Math.random() * gameTypes.length)];
   zones.push({
     x:      pos.x,
     y:      pos.y,
     color:  type.color,
     label:  type.label,
+    gameType: gameType,
     active: true,
     pulseT: 0,
   });
@@ -71,7 +75,7 @@ function checkZoneCollision(entity, onTrigger) {
     const dist = Math.hypot(entity.x - zone.x, entity.y - zone.y);
     if (dist < ZONE_RADIUS + 8) {
       zone.active = false;
-      onTrigger(zone);
+      onTrigger(zone.gameType);
       setTimeout(spawnZone, ZONE_RESPAWN_MS); 
     }
   });
