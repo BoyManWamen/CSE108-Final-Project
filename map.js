@@ -70,9 +70,11 @@ function drawAI() {
 
 function gameLoop() {
   draw ();
+  drawZones(ctx);
   drawAI ();
   AI.step();
   requestAnimationFrame(gameLoop);
 }
 
+initZones();
 gameLoop();
