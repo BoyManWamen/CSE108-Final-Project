@@ -1,4 +1,4 @@
-const MINIGAME_TIME = 10; 
+const MINIGAME_TIME = 30; 
 
 const Minigame = {  
   active:      false,
@@ -8,12 +8,14 @@ const Minigame = {
   timer:       null,
   timeLeft:    MINIGAME_TIME,
 
-  start(triggeredBy) {  
+  start(triggeredBy, gameType) {  
     this.active      = true;
     this.triggeredBy = triggeredBy;  
-    this.type        = Math.random() < 0.5 ? "color" : "math";
-    this.type === "color" ? this.buildColorGame() : this.buildMathGame();
-
+    this.type = gameType;
+    
+    if (this.type === "color") this.buildColorGame();
+    else if (this.type === "math") this.buildMathGame();
+    else if (this.type === "sequence") this.buildSequenceGame();
     this.showOverlay();
     this.startTimer();
 
@@ -25,7 +27,7 @@ const Minigame = {
       }, 2000);
     }
   },
-
+// MatchingColor Game
   buildColorGame() {
     const colors = ["#e74c3c", "#3498db", "#2ecc71", "#f1c40f", "#9b59b6", "#e67e22"];
     this.answer  = colors[Math.floor(Math.random() * colors.length)];
@@ -42,7 +44,7 @@ const Minigame = {
       `<button class="mg-choice" style="background:${c}" data-value="${c}"></button>`
     ).join("");
   },
-
+//Simple Math Sovler
   buildMathGame() {
     const ops = ["+", "-"];
     const op  = ops[Math.floor(Math.random() * ops.length)];
@@ -75,9 +77,6 @@ const Minigame = {
     ).join("");
   },
 
-  getWrongAnswer() {
-    return this.choices.find(c => c !== this.answer);
-  },
 
   showOverlay() {
     let overlay = document.getElementById("minigame-overlay");
