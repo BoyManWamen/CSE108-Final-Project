@@ -26,8 +26,8 @@ function spawnZone() {
   const pos  = randomZonePosition();
   const type = ZONE_TYPES[Math.floor(Math.random() * ZONE_TYPES.length)]; 
 
-  const gameTypes = ["color", "math", "sequence"];
-  const gameType = gameTypes[Math.floor(Math.random() * gameTypes.length)];
+  const gameTypes = ["color", "math", "sequence", "blank", "typing"];
+  const gameType  = gameTypes[Math.floor(Math.random() * gameTypes.length)];
   zones.push({
     x:      pos.x,
     y:      pos.y,
@@ -72,11 +72,12 @@ function drawZones(ctx) {
 function checkZoneCollision(entity, onTrigger) {
   zones.forEach(zone => {
     if (!zone.active) return;
+    if (Minigame.active) return; 
     const dist = Math.hypot(entity.x - zone.x, entity.y - zone.y);
     if (dist < ZONE_RADIUS + 8) {
       zone.active = false;
       onTrigger(zone.gameType);
-      setTimeout(spawnZone, ZONE_RESPAWN_MS); 
+      setTimeout(spawnZone, ZONE_RESPAWN_MS);
     }
   });
 }
