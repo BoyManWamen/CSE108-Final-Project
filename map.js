@@ -13,6 +13,22 @@ const COLORS = ["#23233a","#444441","#888780","#639922","#E24B4A","#378ADD"];
 
 const MAP = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
 
+const PLAYER = {
+  x: 60,
+  y: 120,
+  radius: 8,
+  speed: 2.4,
+  lastDx: 0,
+  lastDy: 1,
+};
+
+const keys = {
+  up: false,
+  down: false,
+  left: false,
+  right: false,
+};
+
 function draw() {
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
@@ -68,10 +84,62 @@ function drawAI() {
   ctx.fillText(AI.state, AI.x + 12, AI.y - 8);
 }
 
+function drawPlayer() {
+  ctx.beginPath();
+  ctx.arc(PLAYER.x, PLAYER.y, PLAYER.radius, 0, Math.PI * 2);
+  ctx.fillStyle = "#f7bf4f";
+  ctx.fill();
+
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.75)";
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(
+    PLAYER.x + PLAYER.lastDx * 10,
+    PLAYER.y + PLAYER.lastDy * 10,
+    3,
+    0,
+    Math.PI * 2
+  );
+  ctx.fillStyle = "white";
+  ctx.fill();
+
+  ctx.fillStyle = "white";
+  ctx.font = "10px monospace";
+  ctx.fillText("YOU", PLAYER.x + 12, PLAYER.y - 8);
+}
+
+function updatePlayer() {
+  let dx = 0;
+  let dy = 0;
+
+  if (keys.left) dx -= 1;
+  if (keys.right) dx += 1;
+  if (keys.up) dy -= 1;
+  if (keys.down) dy += 1;
+
+  if (dx !== 0 || dy !== 0) {
+    const length = Math.hypot(dx, dy);
+    dx /= length;
+    dy /= length;
+
+    PLAYER.x += dx * PLAYER.speed;
+    PLAYER.y += dy * PLAYER.speed;
+    PLAYER.lastDx = dx;
+    PLAYER.lastDy = dy;
+  }
+
+  PLAYER.x = Math.max(PLAYER.radius, Math.min(PLAYER.x, canvas.width - PLAYER.radius));
+  PLAYER.y = Math.max(PLAYER.radius, Math.min(PLAYER.y, canvas.height - PLAYER.radius));
+}
+
 function gameLoop() {
+  updatePlayer();
   draw ();
   drawZones(ctx);
   drawAI ();
+  drawPlayer();
   AI.step();
   requestAnimationFrame(gameLoop);
 }
@@ -81,9 +149,37 @@ gameLoop();
 
 
 window.addEventListener("keydown", (e) => {
-  if (e.key === "m" || e.key === "M") {
+  const key = e.key.toLowerCase();
+
+  if (key === "arrowup" || key === "w") {
+    keys.up = true;
+    e.preventDefault();
+  }
+  if (key === "arrowdown" || key === "s") {
+    keys.down = true;
+    e.preventDefault();
+  }
+  if (key === "arrowleft" || key === "a") {
+    keys.left = true;
+    e.preventDefault();
+  }
+  if (key === "arrowright" || key === "d") {
+    keys.right = true;
+    e.preventDefault();
+  }
+
+  if (key === "m") {
     const types = ["color", "math", "sequence"];
-    const type  = types[Math.floor(Math.random() * types.length)];
+    const type = types[Math.floor(Math.random() * types.length)];
     Minigame.start("player", type);
   }
+});
+
+window.addEventListener("keyup", (e) => {
+  const key = e.key.toLowerCase();
+
+  if (key === "arrowup" || key === "w") keys.up = false;
+  if (key === "arrowdown" || key === "s") keys.down = false;
+  if (key === "arrowleft" || key === "a") keys.left = false;
+  if (key === "arrowright" || key === "d") keys.right = false;
 });
