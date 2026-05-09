@@ -2,14 +2,21 @@ const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
 const TILE = 20;
-const COLS = 31;
-const ROWS = 18;
+const COLS = 2000;
+const ROWS = 2000;
 
-canvas.width  = COLS * TILE;
-canvas.height = ROWS * TILE;
+// canvas.width = 600;
+// canvas.height = 400;
+
+const camera = {
+  x: 0,
+  y: 0,
+  width: canvas.width,
+  height: canvas.height
+}
 
 // 0=floor, 1=wall, 2=cover, 3=speed, 4=spikes, 5=water
-const COLORS = ["#23233a","#444441","#888780","#639922","#E24B4A","#378ADD"];
+const COLORS = ["#23233a", "#444441", "#888780", "#639922", "#E24B4A", "#378ADD"];
 
 const MAP = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
 
@@ -29,9 +36,27 @@ const keys = {
   right: false,
 };
 
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  camera.width = canvas.width;
+  camera.height = canvas.height;
+}
+
+resizeCanvas();
+
+window.addEventListener("resize", resizeCanvas);
+
 function draw() {
-  for (let r = 0; r < ROWS; r++) {
-    for (let c = 0; c < COLS; c++) {
+  const startCol = Math.max(0, Math.floor(camera.x / TILE));
+  const endCol = Math.min(COLS, Math.ceil((camera.x + camera.width) / TILE));
+
+  const startRow = Math.max(0, Math.floor(camera.y / TILE));
+  const endRow = Math.min(ROWS, Math.ceil((camera.y + camera.height) / TILE));
+
+  for (let r = startRow; r < endRow; r++) {
+    for (let c = startCol; c < endCol; c++) {
       ctx.fillStyle = COLORS[MAP[r][c]];
       ctx.fillRect(c * TILE, r * TILE, TILE, TILE);
     }
@@ -69,15 +94,15 @@ function drawAI() {
   ctx.fillStyle = AI.team === "red" ? "#E24B4A" : "#378ADD";
   ctx.fill();
 
-  ctx.beginPath ();
-  ctx.arc (
+  ctx.beginPath();
+  ctx.arc(
     AI.x + Math.cos(AI.angle) * 10,
     AI.y + Math.sin(AI.angle) * 10,
     3, 0, Math.PI * 2
   );
 
   ctx.fillStyle = "white";
-  ctx. fill();
+  ctx.fill();
 
   ctx.fillStyle = "white";
   ctx.font = "10px monospace";
@@ -130,16 +155,47 @@ function updatePlayer() {
     PLAYER.lastDy = dy;
   }
 
-  PLAYER.x = Math.max(PLAYER.radius, Math.min(PLAYER.x, canvas.width - PLAYER.radius));
-  PLAYER.y = Math.max(PLAYER.radius, Math.min(PLAYER.y, canvas.height - PLAYER.radius));
+  PLAYER.x = Math.max(PLAYER.radius, Math.min(PLAYER.x, (COLS * TILE) - PLAYER.radius));
+  PLAYER.y = Math.max(PLAYER.radius, Math.min(PLAYER.y, (ROWS * TILE) - PLAYER.radius));
+}
+
+// Add this to your updateCamera() in map.js
+function updateCamera() {
+  camera.x = PLAYER.x - camera.width / 2;
+  camera.y = PLAYER.y - camera.height / 2;
+
+  // Only clamp if the map is actually larger than the screen
+  if (COLS * TILE > camera.width) {
+    camera.x = Math.max(0, Math.min(camera.x, (COLS * TILE) - camera.width));
+  } else {
+    // Center the map horizontally
+    camera.x = (COLS * TILE - camera.width) / 2;
+  }
+
+  if (ROWS * TILE > camera.height) {
+    camera.y = Math.max(0, Math.min(camera.y, (ROWS * TILE) - camera.height));
+  } else {
+    // Center the map vertically
+    camera.y = (ROWS * TILE - camera.height) / 2;
+  }
 }
 
 function gameLoop() {
   updatePlayer();
-  draw ();
+  updateCamera();
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.save();
+  ctx.translate(-camera.x, -camera.y);
+
+  draw();
   drawZones(ctx);
-  drawAI ();
+  drawAI();
   drawPlayer();
+
+  ctx.restore();
+
   AI.step();
   requestAnimationFrame(gameLoop);
 }
