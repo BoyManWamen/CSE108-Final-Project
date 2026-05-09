@@ -1,5 +1,40 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
+const socket = io();
+
+const otherPlayers = {}; // Store the other connected players here
+
+// When we first connect, load everyone already in the game
+socket.on('currentPlayers', (players) => {
+  Object.keys(players).forEach((id) => {
+    if (id !== socket.id) { // Don't add ourselves
+      otherPlayers[id] = players[id];
+    } else {
+      // Optional: Set our own initial team/position from the server
+      PLAYER.team = players[id].team;
+    }
+  });
+});
+
+// When a new player joins, add them to our dictionary
+socket.on('newPlayer', (playerInfo) => {
+  otherPlayers[playerInfo.id] = playerInfo;
+});
+
+// When another player moves, update their coordinates
+socket.on('playerMoved', (playerInfo) => {
+  if (otherPlayers[playerInfo.id]) {
+    otherPlayers[playerInfo.id].x = playerInfo.x;
+    otherPlayers[playerInfo.id].y = playerInfo.y;
+    otherPlayers[playerInfo.id].lastDx = playerInfo.lastDx;
+    otherPlayers[playerInfo.id].lastDy = playerInfo.lastDy;
+  }
+});
+
+// Remove them if they disconnect
+socket.on('playerDisconnected', (playerId) => {
+  delete otherPlayers[playerId];
+});
 
 const TILE = 20;
 const COLS = 2000;
@@ -135,6 +170,24 @@ function drawPlayer() {
   ctx.fillText("YOU", PLAYER.x + 12, PLAYER.y - 8);
 }
 
+function drawOtherPlayers() {
+  Object.values(otherPlayers).forEach(p => {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.radius || 8, 0, Math.PI * 2);
+    ctx.fillStyle = p.team === "red" ? "#E24B4A" : "#378ADD";
+    ctx.fill();
+
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.75)";
+    ctx.stroke();
+    
+    // Draw their name tag or ID
+    ctx.fillStyle = "white";
+    ctx.font = "10px monospace";
+    ctx.fillText("ENEMY", p.x + 12, p.y - 8);
+  });
+}
+
 function updatePlayer() {
   let dx = 0;
   let dy = 0;
@@ -153,6 +206,13 @@ function updatePlayer() {
     PLAYER.y += dy * PLAYER.speed;
     PLAYER.lastDx = dx;
     PLAYER.lastDy = dy;
+
+    socket.emit('playerMovement', {
+    x: PLAYER.x,
+    y: PLAYER.y,
+    lastDx: PLAYER.lastDx,
+    lastDy: PLAYER.lastDy
+  });
   }
 
   PLAYER.x = Math.max(PLAYER.radius, Math.min(PLAYER.x, (COLS * TILE) - PLAYER.radius));
@@ -193,6 +253,7 @@ function gameLoop() {
   drawZones(ctx);
   drawAI();
   drawPlayer();
+  drawOtherPlayers();
 
   ctx.restore();
 
