@@ -2,26 +2,22 @@ const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 const socket = io();
 
-const otherPlayers = {}; // Store the other connected players here
+const otherPlayers = {};
 
-// When we first connect, load everyone already in the game
 socket.on('currentPlayers', (players) => {
   Object.keys(players).forEach((id) => {
     if (id !== socket.id) { // Don't add ourselves
       otherPlayers[id] = players[id];
     } else {
-      // Optional: Set our own initial team/position from the server
       PLAYER.team = players[id].team;
     }
   });
 });
 
-// When a new player joins, add them to our dictionary
 socket.on('newPlayer', (playerInfo) => {
   otherPlayers[playerInfo.id] = playerInfo;
 });
 
-// When another player moves, update their coordinates
 socket.on('playerMoved', (playerInfo) => {
   if (otherPlayers[playerInfo.id]) {
     otherPlayers[playerInfo.id].x = playerInfo.x;
@@ -31,7 +27,6 @@ socket.on('playerMoved', (playerInfo) => {
   }
 });
 
-// Remove them if they disconnect
 socket.on('playerDisconnected', (playerId) => {
   delete otherPlayers[playerId];
 });
@@ -39,9 +34,6 @@ socket.on('playerDisconnected', (playerId) => {
 const TILE = 20;
 const COLS = 2000;
 const ROWS = 2000;
-
-// canvas.width = 600;
-// canvas.height = 400;
 
 const camera = {
   x: 0,
@@ -180,7 +172,7 @@ function drawOtherPlayers() {
     ctx.lineWidth = 2;
     ctx.strokeStyle = "rgba(255, 255, 255, 0.75)";
     ctx.stroke();
-    
+
     // Draw their name tag or ID
     ctx.fillStyle = "white";
     ctx.font = "10px monospace";
@@ -208,34 +200,30 @@ function updatePlayer() {
     PLAYER.lastDy = dy;
 
     socket.emit('playerMovement', {
-    x: PLAYER.x,
-    y: PLAYER.y,
-    lastDx: PLAYER.lastDx,
-    lastDy: PLAYER.lastDy
-  });
+      x: PLAYER.x,
+      y: PLAYER.y,
+      lastDx: PLAYER.lastDx,
+      lastDy: PLAYER.lastDy
+    });
   }
 
   PLAYER.x = Math.max(PLAYER.radius, Math.min(PLAYER.x, (COLS * TILE) - PLAYER.radius));
   PLAYER.y = Math.max(PLAYER.radius, Math.min(PLAYER.y, (ROWS * TILE) - PLAYER.radius));
 }
 
-// Add this to your updateCamera() in map.js
 function updateCamera() {
   camera.x = PLAYER.x - camera.width / 2;
   camera.y = PLAYER.y - camera.height / 2;
 
-  // Only clamp if the map is actually larger than the screen
   if (COLS * TILE > camera.width) {
     camera.x = Math.max(0, Math.min(camera.x, (COLS * TILE) - camera.width));
   } else {
-    // Center the map horizontally
     camera.x = (COLS * TILE - camera.width) / 2;
   }
 
   if (ROWS * TILE > camera.height) {
     camera.y = Math.max(0, Math.min(camera.y, (ROWS * TILE) - camera.height));
   } else {
-    // Center the map vertically
     camera.y = (ROWS * TILE - camera.height) / 2;
   }
 }
