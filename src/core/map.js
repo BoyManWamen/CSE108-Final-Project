@@ -254,6 +254,8 @@ gameLoop();
 
 
 window.addEventListener("keydown", (e) => {
+  if (Minigame.active) return;
+
   const key = e.key.toLowerCase();
 
   if (key === "arrowup" || key === "w") {
@@ -274,7 +276,7 @@ window.addEventListener("keydown", (e) => {
   }
 
   if (key === "m") {
-    const types = ["color", "math", "sequence"];
+    const types = ["color", "math", "blank", "typing"];
     const type = types[Math.floor(Math.random() * types.length)];
     Minigame.start("player", type);
   }
@@ -282,7 +284,6 @@ window.addEventListener("keydown", (e) => {
 
 window.addEventListener("keyup", (e) => {
   const key = e.key.toLowerCase();
-
   if (key === "arrowup" || key === "w") keys.up = false;
   if (key === "arrowdown" || key === "s") keys.down = false;
   if (key === "arrowleft" || key === "a") keys.left = false;
