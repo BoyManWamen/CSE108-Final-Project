@@ -116,7 +116,7 @@ showOverlay() {
 
 
 async buildFillBlankGame() {
-  const res   = await fetch("FourLetterwords.txt");
+  const res   = await fetch("assets/data/FourLetterwords.txt");
   const text  = await res.text();
   const words = text.split("\n").map(w => w.trim()).filter(w => w.length > 0);
 
@@ -146,7 +146,7 @@ async buildFillBlankGame() {
 },
 
 async buildTypingGame() {
-  const res     = await fetch("phrases.txt");
+  const res     = await fetch("assets/data/phrases.txt");
   const text    = await res.text();
   const phrases = text.split("\n").map(w => w.trim()).filter(w => w.length > 0);
   const phrase  = phrases[Math.floor(Math.random() * phrases.length)];
