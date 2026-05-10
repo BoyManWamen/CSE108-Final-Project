@@ -1,13 +1,12 @@
 const Leaderboard = {
-  scores:    {},   // { socketId: { name, wins } }
+  scores:    {},   
   aiWins:    0,
-  timeLeft:  120,  // 2 minutes in seconds
+  timeLeft:  120,  
   timer:     null,
   gameOver:  false,
 
-  // ── INIT ──────────────────────────────────────────────────────────────────
+  // ── INIT 
   init() {
-    // add local player
     const name = sessionStorage.getItem("username") || "Player";
     this.scores[socket.id] = { name, wins: 0 };
 
@@ -15,7 +14,7 @@ const Leaderboard = {
     this.startTimer();
   },
 
-  // ── ADD WIN ───────────────────────────────────────────────────────────────
+  // ── ADD WIN 
   addWin(who) {
     if (this.gameOver) return;
 
@@ -32,7 +31,7 @@ const Leaderboard = {
     this.updateSidebar();
   },
 
-  // ── ADD / REMOVE PLAYERS ──────────────────────────────────────────────────
+  // ── ADD / REMOVE PLAYERS 
   addPlayer(id, name) {
     if (!this.scores[id]) {
       this.scores[id] = { name: name || "Player", wins: 0 };
@@ -45,7 +44,7 @@ const Leaderboard = {
     this.updateSidebar();
   },
 
-  // ── TIMER ─────────────────────────────────────────────────────────────────
+  // ── TIMER
   startTimer() {
     this.timer = setInterval(() => {
       if (this.gameOver) return;
@@ -63,7 +62,7 @@ const Leaderboard = {
     }, 1000);
   },
 
-  // ── SIDEBAR ───────────────────────────────────────────────────────────────
+  // ── SIDEBAR
   buildSidebar() {
     let sidebar = document.getElementById("leaderboard-sidebar");
     if (!sidebar) {
@@ -77,8 +76,6 @@ const Leaderboard = {
   updateSidebar() {
     const sidebar = document.getElementById("leaderboard-sidebar");
     if (!sidebar) return;
-
-    // build rows for all players sorted by wins
     const playerRows = Object.entries(this.scores)
       .sort((a, b) => b[1].wins - a[1].wins)
       .map(([id, data]) => {
@@ -103,11 +100,9 @@ const Leaderboard = {
     `;
   },
 
-  // ── END SCREEN ────────────────────────────────────────────────────────────
+  // ── END SCREEN
   showEndScreen() {
     this.gameOver = true;
-
-    // find winner
     let winnerName = "AI";
     let winnerWins = this.aiWins;
 
@@ -117,8 +112,6 @@ const Leaderboard = {
         winnerWins = data.wins;
       }
     });
-
-    // build all scores sorted
     const allScores = Object.entries(this.scores)
       .sort((a, b) => b[1].wins - a[1].wins)
       .map(([id, data]) => `
