@@ -102,3 +102,93 @@ canvas {
   font-weight: bold;
   min-height: 24px;
 }
+
+/* ── FILL IN THE BLANK ───────────────────────────────────────────────────── */
+.mg-word-display {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin: 12px 0 16px;
+}
+
+.mg-letter {
+  font-size: 28px;
+  font-weight: bold;
+  color: white;
+}
+
+.mg-blank {
+  font-size: 28px;
+  font-weight: bold;
+  color: #f1c40f;
+  border-bottom: 3px solid #f1c40f;
+  padding: 0 4px;
+}
+
+.mg-letter-btn {
+  background: #2c2c54;
+  font-size: 20px;
+  font-weight: bold;
+  color: white;
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  border: 3px solid transparent;
+  cursor: pointer;
+}
+
+.mg-letter-btn:hover {
+  border-color: white;
+  transform: scale(1.05);
+}
+
+/* ── TYPING GAME ─────────────────────────────────────────────────────────── */
+.mg-typing-phrase {
+  font-size: 18px;
+  font-weight: bold;
+  color: #f1c40f;
+  margin: 10px 0 14px;
+  letter-spacing: 1px;
+  background: #12122a;
+  border-radius: 8px;
+  padding: 10px;
+  border: 1px solid #444;
+}
+
+.mg-typing-input {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 2px solid #444;
+  background: #111;
+  color: white;
+  font-family: monospace;
+  font-size: 16px;
+  text-align: center;
+  margin-bottom: 12px;
+  box-sizing: border-box;
+}
+
+.mg-typing-input:focus {
+  outline: none;
+  border-color: #f1c40f;
+}
+
+.mg-submit-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background: #2c2c54;
+  color: white;
+  font-family: monospace;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: border-color 0.1s, transform 0.1s;
+}
+
+.mg-submit-btn:hover {
+  border-color: white;
+  transform: scale(1.02);
+}
