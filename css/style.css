@@ -192,3 +192,134 @@ canvas {
   border-color: white;
   transform: scale(1.02);
 }
+
+/* ── LEADERBOARD SIDEBAR ─────────────────────────────────────────────────── */
+#leaderboard-sidebar {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: #1a1a2e;
+  border: 2px solid #444;
+  border-radius: 12px;
+  padding: 16px 20px;
+  color: white;
+  font-family: monospace;
+  min-width: 180px;
+  z-index: 5;
+}
+
+#lb-timer {
+  font-size: 28px;
+  font-weight: bold;
+  color: #f1c40f;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+#leaderboard-sidebar h3 {
+  font-size: 13px;
+  color: #aaa;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.lb-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.lb-me {
+  color: #f1c40f;
+}
+
+.lb-ai {
+  color: #E24B4A;
+  margin-top: 6px;
+  border-top: 1px solid #333;
+  padding-top: 6px;
+}
+
+.lb-name {
+  color: inherit;
+}
+
+.lb-score {
+  font-size: 18px;
+  font-weight: bold;
+  color: white;
+}
+
+/* ── END SCREEN ──────────────────────────────────────────────────────────── */
+#end-screen {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  justify-content: center;
+  align-items: center;
+  z-index: 20;
+}
+
+#end-box {
+  background: #1a1a2e;
+  border: 2px solid #f1c40f;
+  border-radius: 16px;
+  padding: 40px;
+  text-align: center;
+  color: white;
+  font-family: monospace;
+  min-width: 320px;
+}
+
+#end-box h1 {
+  font-size: 28px;
+  color: #f1c40f;
+  margin-bottom: 12px;
+}
+
+#end-winner {
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: 24px;
+  color: white;
+}
+
+.end-scores {
+  background: #12122a;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.end-score-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 15px;
+  margin-bottom: 8px;
+  color: #aaa;
+}
+
+.end-score-row span:last-child {
+  color: white;
+  font-weight: bold;
+}
+
+#end-restart {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+  background: #f1c40f;
+  color: #111;
+  font-family: monospace;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+#end-restart:hover {
+  background: #d4ac0d;
+}
