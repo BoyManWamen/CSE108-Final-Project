@@ -32,7 +32,7 @@ function spawnZone() {
   const pos  = randomZonePosition();
   const type = ZONE_TYPES[Math.floor(Math.random() * ZONE_TYPES.length)];
 
-  const gameTypes = ["color", "math", "sequence", "blank", "typing", "odd"];
+  const gameTypes = ["color", "math", "blank", "typing"];
   const gameType  = gameTypes[Math.floor(Math.random() * gameTypes.length)];
 
   let position;
