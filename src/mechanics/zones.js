@@ -14,11 +14,16 @@ const ZONE_TYPES = [
 const zones = [];
 
 function randomZonePosition() {
-  const col = 4 + Math.floor(Math.random() * (COLS - 8));
-  const row = 1 + Math.floor(Math.random() * (ROWS - 2));
+  // spawn within 800px of the player in any direction
+  const range = 800;
+
+  const x = PLAYER.x + (Math.random() - 0.5) * range * 2;
+  const y = PLAYER.y + (Math.random() - 0.5) * range * 2;
+
+  // clamp to map bounds
   return {
-    x: col * TILE + (Math.random() * TILE),
-    y: row * TILE + (Math.random() * TILE),
+    x: Math.max(ZONE_RADIUS + 10, Math.min(x, COLS * TILE - ZONE_RADIUS - 10)),
+    y: Math.max(ZONE_RADIUS + 10, Math.min(y, ROWS * TILE - ZONE_RADIUS - 10)),
   };
 }
 
@@ -29,6 +34,16 @@ function isTooClose(x, y) {
 }
 
 function spawnZone() {
+  // remove zones that are too far from player
+  zones.forEach(zone => {
+    if (Math.hypot(zone.x - PLAYER.x, zone.y - PLAYER.y) > 1200) {
+      zone.active = false;
+    }
+  });
+
+  // remove inactive zones from array
+  zones.splice(0, zones.length, ...zones.filter(z => z.active));
+
   const pos  = randomZonePosition();
   const type = ZONE_TYPES[Math.floor(Math.random() * ZONE_TYPES.length)];
 
