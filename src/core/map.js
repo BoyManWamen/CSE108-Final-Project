@@ -78,6 +78,19 @@ socket.on('playerDisconnected', (playerId) => {
     Leaderboard.removePlayer(playerId);
 });
 
+socket.on('scoreUpdate', (data) => {
+  if (data.id !== socket.id) {
+    // update another player's score on our leaderboard
+    if (typeof Leaderboard !== "undefined") {
+      if (!Leaderboard.scores[data.id]) {
+        Leaderboard.scores[data.id] = { name: data.name, wins: 0 };
+      }
+      Leaderboard.scores[data.id].wins = data.wins;
+      Leaderboard.updateSidebar();
+    }
+  }
+});
+
 // ── DRAW ──────────────────────────────────────────────────────────────────
 function draw() {
   const startCol = Math.max(0, Math.floor(camera.x / TILE));
@@ -255,7 +268,7 @@ function gameLoop() {
 
 // ── KEYS ──────────────────────────────────────────────────────────────────
 window.addEventListener("keydown", (e) => {
-  if (Minigame.active) return;
+  // if (Minigame.active) return;
 
   const key = e.key.toLowerCase();
 
