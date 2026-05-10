@@ -224,6 +224,12 @@ finish(won) {
   if (this.triggeredBy === "player") {
     if (won) {
       Leaderboard.addWin(socket.id);
+      // ✅ tell server about the win
+      socket.emit('minigameWin', {
+        id:   socket.id,
+        name: sessionStorage.getItem("username") || "Player",
+        wins: Leaderboard.scores[socket.id]?.wins || 0
+      });
       showNotification("✅ You won!");
     } else {
       Leaderboard.addWin("ai");
@@ -235,6 +241,11 @@ finish(won) {
       showNotification("🤖 AI won a minigame!");
     } else {
       Leaderboard.addWin(socket.id);
+      socket.emit('minigameWin', {
+        id:   socket.id,
+        name: sessionStorage.getItem("username") || "Player",
+        wins: Leaderboard.scores[socket.id]?.wins || 0
+      });
       showNotification("🤖 AI lost a minigame!");
     }
   }
