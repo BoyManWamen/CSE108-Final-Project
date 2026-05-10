@@ -85,27 +85,27 @@ async start(triggeredBy, gameType) {
   },
 
 showOverlay() {
-    let overlay = document.getElementById("minigame-overlay");
-    if (!overlay) {
-      overlay = document.createElement("div");
-      overlay.id = "minigame-overlay";
-      document.body.appendChild(overlay);
-    }
+  let overlay = document.getElementById("minigame-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "minigame-overlay";
+    document.body.appendChild(overlay);
+  }
 
-    overlay.innerHTML = `
-      <div id="minigame-box">
-        <div id="mg-timer">${MINIGAME_TIME}</div>
-        ${this.promptHTML}
-        <div id="mg-choices">${this.choicesHTML}</div>
-        <p id="mg-result"></p>
-      </div>
-    `;
+  overlay.innerHTML = `
+    <div id="minigame-box">
+      <div id="mg-timer">${MINIGAME_TIME}</div>
+      ${this.promptHTML}
+      <div id="mg-choices">${this.choicesHTML}</div>
+      <p id="mg-result"></p>
+    </div>
+  `;
 
+  if (this.triggeredBy === "player") {
     overlay.style.display = "flex";
 
     overlay.querySelectorAll(".mg-choice").forEach(btn => {
       if (btn.id === "typing-submit") return;
-
       btn.addEventListener("click", () => {
         const val = isNaN(btn.dataset.value)
           ? btn.dataset.value
@@ -113,7 +113,10 @@ showOverlay() {
         this.resolve(val);
       });
     });
-  },
+  } else {
+    overlay.style.display = "none";
+  }
+},
 
 
 async buildFillBlankGame() {
@@ -217,15 +220,23 @@ finish(won) {
   this.active = false;
   const overlay = document.getElementById("minigame-overlay");
   if (overlay) overlay.style.display = "none";
-  keys.up = false;
-  keys.down = false;
-  keys.left = false;
-  keys.right = false;
 
   if (this.triggeredBy === "player") {
-    won ? freezeAI() : freezePlayer();
+    if (won) {
+      Leaderboard.addWin(socket.id);
+      showNotification("✅ You won!");
+    } else {
+      Leaderboard.addWin("ai");
+      showNotification("❌ You lost!");
+    }
   } else {
-    won ? freezePlayer() : freezeAI();
+    if (won) {
+      Leaderboard.addWin("ai");
+      showNotification("🤖 AI won a minigame!");
+    } else {
+      Leaderboard.addWin(socket.id);
+      showNotification("🤖 AI lost a minigame!");
+    }
   }
 },
 };
