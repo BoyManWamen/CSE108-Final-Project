@@ -31,8 +31,6 @@ io.on('connection', (socket) => {
   };
 
   socket.emit('currentPlayers', players);
-  socket.emit('flagUpdate', flags);
-  
   socket.broadcast.emit('newPlayer', players[socket.id]);
 
   socket.on('playerMovement', (movementData) => {
@@ -41,28 +39,22 @@ io.on('connection', (socket) => {
       players[socket.id].y = movementData.y;
       players[socket.id].lastDx = movementData.lastDx;
       players[socket.id].lastDy = movementData.lastDy;
-      
       socket.broadcast.emit('playerMoved', players[socket.id]);
     }
   });
 
-  socket.on('pickupFlag', (flagColor) => {
-    if (flags[flagColor] && !flags[flagColor].carriedBy) {
-      flags[flagColor].carriedBy = socket.id;
-      io.emit('flagUpdate', flags);
-    }
+  socket.on('minigameWin', (data) => {
+    io.emit('scoreUpdate', {
+      id:   data.id,
+      name: data.name,
+      wins: data.wins
+    });
   });
 
   socket.on('disconnect', () => {
     console.log('Player disconnected:', socket.id);
-    
-    if (flags.red.carriedBy === socket.id) flags.red.carriedBy = null;
-    if (flags.blue.carriedBy === socket.id) flags.blue.carriedBy = null;
-
     delete players[socket.id];
-    
     io.emit('playerDisconnected', socket.id);
-    io.emit('flagUpdate', flags); 
   });
 });
 
