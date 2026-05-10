@@ -9,6 +9,7 @@ const Minigame = {
   timeLeft:    MINIGAME_TIME,
 
 async start(triggeredBy, gameType) {  
+    console.log("Starting game:", gameType);
     this.active      = true;
     this.triggeredBy = triggeredBy;  
     this.type = gameType;
@@ -212,15 +213,19 @@ startTimer() {
     setTimeout(() => this.finish(won), 800);
   },
 
-  finish(won) {
-    this.active = false;
-    const overlay = document.getElementById("minigame-overlay");
-    if (overlay) overlay.style.display = "none";
+finish(won) {
+  this.active = false;
+  const overlay = document.getElementById("minigame-overlay");
+  if (overlay) overlay.style.display = "none";
+  keys.up = false;
+  keys.down = false;
+  keys.left = false;
+  keys.right = false;
 
-    if (this.triggeredBy === "player") {
-      won ? freezeAI() : freezePlayer();
-    } else {
-      won ? freezePlayer() : freezeAI();
-    }
-  },
+  if (this.triggeredBy === "player") {
+    won ? freezeAI() : freezePlayer();
+  } else {
+    won ? freezePlayer() : freezeAI();
+  }
+},
 };
