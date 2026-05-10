@@ -231,6 +231,7 @@ function updateCamera() {
 function gameLoop() {
   updatePlayer();
   updateCamera();
+  maintainZones();
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -246,11 +247,16 @@ function gameLoop() {
   ctx.restore();
 
   AI.step();
+
+  checkZoneCollision(PLAYER, (gameType) => {
+    Minigame.start("player", gameType);
+  });
+  checkZoneCollision(AI, (gameType) => {
+    Minigame.start("ai", gameType);
+  });
+
   requestAnimationFrame(gameLoop);
 }
-
-initZones();
-gameLoop();
 
 
 window.addEventListener("keydown", (e) => {
@@ -289,3 +295,27 @@ window.addEventListener("keyup", (e) => {
   if (key === "arrowleft" || key === "a") keys.left = false;
   if (key === "arrowright" || key === "d") keys.right = false;
 });
+
+
+
+function freezeAI() { console.log("AI frozen"); }
+function freezePlayer() { console.log("Player frozen"); }
+
+// start game after all scripts load
+window.addEventListener("load", () => {
+  initZones();
+  gameLoop();
+});
+
+function maintainZones() {
+  // count only active zones near the player
+  const nearbyZones = zones.filter(z =>
+    z.active && Math.hypot(z.x - PLAYER.x, z.y - PLAYER.y) < 1000
+  );
+
+  // keep spawning until we have enough nearby
+  while (nearbyZones.length < ZONE_COUNT) {
+    spawnZone();
+    nearbyZones.push({}); // placeholder to avoid infinite loop
+  }
+}
