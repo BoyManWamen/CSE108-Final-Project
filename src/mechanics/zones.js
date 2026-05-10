@@ -1,6 +1,6 @@
-const ZONE_COUNT      = 3 + Math.floor(Math.random() * 6);
-const ZONE_RADIUS     = 16;
-const ZONE_RESPAWN_MS = 3000;
+const ZONE_COUNT        = 3 + Math.floor(Math.random() * 6);
+const ZONE_RADIUS       = 16;
+const ZONE_RESPAWN_MS   = 3000;
 const MIN_ZONE_DISTANCE = 80;
 
 const ZONE_TYPES = [
@@ -14,13 +14,9 @@ const ZONE_TYPES = [
 const zones = [];
 
 function randomZonePosition() {
-  // spawn within 800px of the player in any direction
   const range = 800;
-
   const x = PLAYER.x + (Math.random() - 0.5) * range * 2;
   const y = PLAYER.y + (Math.random() - 0.5) * range * 2;
-
-  // clamp to map bounds
   return {
     x: Math.max(ZONE_RADIUS + 10, Math.min(x, COLS * TILE - ZONE_RADIUS - 10)),
     y: Math.max(ZONE_RADIUS + 10, Math.min(y, ROWS * TILE - ZONE_RADIUS - 10)),
@@ -34,19 +30,14 @@ function isTooClose(x, y) {
 }
 
 function spawnZone() {
-  // remove zones that are too far from player
   zones.forEach(zone => {
     if (Math.hypot(zone.x - PLAYER.x, zone.y - PLAYER.y) > 1200) {
       zone.active = false;
     }
   });
-
-  // remove inactive zones from array
   zones.splice(0, zones.length, ...zones.filter(z => z.active));
 
-  const pos  = randomZonePosition();
-  const type = ZONE_TYPES[Math.floor(Math.random() * ZONE_TYPES.length)];
-
+  const type      = ZONE_TYPES[Math.floor(Math.random() * ZONE_TYPES.length)];
   const gameTypes = ["color", "math", "blank", "typing"];
   const gameType  = gameTypes[Math.floor(Math.random() * gameTypes.length)];
 
@@ -68,6 +59,36 @@ function spawnZone() {
   });
 }
 
+// ✅ spawnZoneNear is now outside checkZoneCollision
+function spawnZoneNear(cx, cy) {
+  const range     = 800;
+  const type      = ZONE_TYPES[Math.floor(Math.random() * ZONE_TYPES.length)];
+  const gameTypes = ["color", "math", "blank", "typing"];
+  const gameType  = gameTypes[Math.floor(Math.random() * gameTypes.length)];
+
+  let position;
+  let attempts = 0;
+  do {
+    const x = cx + (Math.random() - 0.5) * range * 2;
+    const y = cy + (Math.random() - 0.5) * range * 2;
+    position = {
+      x: Math.max(ZONE_RADIUS + 10, Math.min(x, COLS * TILE - ZONE_RADIUS - 10)),
+      y: Math.max(ZONE_RADIUS + 10, Math.min(y, ROWS * TILE - ZONE_RADIUS - 10)),
+    };
+    attempts++;
+  } while (isTooClose(position.x, position.y) && attempts < 50);
+
+  zones.push({
+    x:        position.x,
+    y:        position.y,
+    color:    type.color,
+    label:    type.label,
+    gameType: gameType,
+    active:   true,
+    pulseT:   0,
+  });
+}
+
 function initZones() {
   for (let i = 0; i < ZONE_COUNT; i++) spawnZone();
 }
@@ -75,10 +96,7 @@ function initZones() {
 function drawZones(ctx) {
   zones.forEach(zone => {
     if (!zone.active) return;
-
     zone.pulseT += 0.05;
-
-    // outer glow
     ctx.fillStyle = zone.color + "66";
     ctx.fillRect(
       zone.x - ZONE_RADIUS - 4,
@@ -86,8 +104,6 @@ function drawZones(ctx) {
       (ZONE_RADIUS + 4) * 2,
       (ZONE_RADIUS + 4) * 2
     );
-
-    // main square
     ctx.fillStyle = zone.color;
     ctx.fillRect(
       zone.x - ZONE_RADIUS,
@@ -102,7 +118,6 @@ function checkZoneCollision(entity, onTrigger) {
   zones.forEach(zone => {
     if (!zone.active) return;
     if (Minigame.active) return;
-
     const dist = Math.hypot(entity.x - zone.x, entity.y - zone.y);
     if (dist < ZONE_RADIUS + 8) {
       zone.active = false;
