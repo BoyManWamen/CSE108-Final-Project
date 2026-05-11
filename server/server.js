@@ -15,9 +15,10 @@ app.use(express.static(path.join(__dirname, '../')));
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  // ssl: { rejectUnauthorized: false },
   ssl: false,
 });
+
+// DATABASE
 
 async function initDB() {
   await pool.query(`
@@ -45,14 +46,18 @@ function verifyPassword(plaintext, storedHash, salt) {
   return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(storedHash, 'hex'));
 }
 
+// AUTH ROUTES
+
 app.post('/api/register', async (req, res) => {
   const { username, email, password } = req.body;
+
   if (!username || !email || !password)
     return res.status(400).json({ error: 'All fields are required.' });
   if (password.length < 6)
     return res.status(400).json({ error: 'Password must be at least 6 characters.' });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
     return res.status(400).json({ error: 'Invalid email address.' });
+
   try {
     const existing = await pool.query(
       'SELECT id FROM users WHERE username = $1 OR email = $2',
@@ -60,6 +65,7 @@ app.post('/api/register', async (req, res) => {
     );
     if (existing.rows.length > 0)
       return res.status(409).json({ error: 'Username or email already taken.' });
+
     const { salt, hash } = hashPassword(password);
     await pool.query(
       'INSERT INTO users (username, email, password_hash, salt) VALUES ($1, $2, $3, $4)',
@@ -74,15 +80,19 @@ app.post('/api/register', async (req, res) => {
 
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
+
   if (!username || !password)
     return res.status(400).json({ error: 'All fields are required.' });
+
   try {
     const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
     if (result.rows.length === 0)
       return res.status(401).json({ error: 'Username not found.' });
+
     const user = result.rows[0];
     if (!verifyPassword(password, user.password_hash, user.salt))
       return res.status(401).json({ error: 'Incorrect password.' });
+
     res.json({ ok: true, username: user.username, totalWins: user.total_wins });
   } catch (err) {
     console.error('Login error:', err);
@@ -101,14 +111,16 @@ app.get('/api/leaderboard', async (_req, res) => {
   }
 });
 
-const GAME_DURATION = 120;
-const players = {};
-const ZONE_COUNT        = 3 + Math.floor(Math.random() * 6);
-const ZONE_RADIUS       = 16;
-const ZONE_RESPAWN_MS   = 3000;
-const MIN_ZONE_DISTANCE = 80;
+// GAME STATE
+
+const GAME_DURATION          = 120;
+const ZONE_COUNT             = 3 + Math.floor(Math.random() * 6);
+const ZONE_RADIUS            = 16;
+const ZONE_RESPAWN_MS        = 3000;
+const MIN_ZONE_DISTANCE      = 80;
 const ZONE_ACTIVATE_DISTANCE = 1000;
 const ZONE_DESPAWN_DISTANCE  = 1200;
+
 const ZONE_TYPES = [
   { color: '#e74c3c', label: 'Red Square'    },
   { color: '#3498db', label: 'Blue Square'   },
@@ -116,8 +128,11 @@ const ZONE_TYPES = [
   { color: '#f1c40f', label: 'Yellow Square' },
   { color: '#9b59b6', label: 'Purple Square' },
 ];
+
 const ZONE_GAME_TYPES = ['color', 'math', 'blank', 'typing'];
-const zones = [];
+
+const players  = {};
+const zones    = [];
 let nextZoneId = 1;
 let gameStartTime = Date.now();
 
@@ -125,6 +140,8 @@ function getTimeLeft() {
   const elapsed = Math.floor((Date.now() - gameStartTime) / 1000);
   return Math.max(0, GAME_DURATION - elapsed);
 }
+
+// ZONE HELPERS
 
 function clampZonePosition(x, y) {
   return {
@@ -144,18 +161,18 @@ function isTooClose(x, y) {
 }
 
 function createZone(position, options = {}) {
-  const type = options.type || ZONE_TYPES[Math.floor(Math.random() * ZONE_TYPES.length)];
+  const type     = options.type     || ZONE_TYPES[Math.floor(Math.random() * ZONE_TYPES.length)];
   const gameType = options.gameType || ZONE_GAME_TYPES[Math.floor(Math.random() * ZONE_GAME_TYPES.length)];
   const zone = {
-    id: nextZoneId++,
-    x: position.x,
-    y: position.y,
-    color: type.color,
-    label: type.label,
+    id:         nextZoneId++,
+    x:          position.x,
+    y:          position.y,
+    color:      type.color,
+    label:      type.label,
     gameType,
-    active: true,
+    active:     true,
     respawning: false,
-    pulseT: 0,
+    pulseT:     0,
   };
   zones.push(zone);
   return zone;
@@ -182,11 +199,13 @@ function emitZones() {
 
 function maintainZones() {
   const activePlayers = Object.values(players);
-  const trackedZones = zones.filter(zone => zone.active || zone.respawning);
+  const trackedZones  = zones.filter(zone => zone.active || zone.respawning);
 
   zones.splice(0, zones.length, ...trackedZones.filter(zone => {
     if (zone.respawning) return true;
-    return activePlayers.some(player => Math.hypot(zone.x - player.x, zone.y - player.y) <= ZONE_DESPAWN_DISTANCE);
+    return activePlayers.some(
+      player => Math.hypot(zone.x - player.x, zone.y - player.y) <= ZONE_DESPAWN_DISTANCE
+    );
   }));
 
   if (activePlayers.length === 0) {
@@ -196,7 +215,8 @@ function maintainZones() {
 
   activePlayers.forEach(player => {
     const nearby = zones.filter(zone =>
-      (zone.active || zone.respawning) && Math.hypot(zone.x - player.x, zone.y - player.y) < ZONE_ACTIVATE_DISTANCE
+      (zone.active || zone.respawning) &&
+      Math.hypot(zone.x - player.x, zone.y - player.y) < ZONE_ACTIVATE_DISTANCE
     );
     while (nearby.length < ZONE_COUNT) {
       nearby.push(spawnZoneNear(player.x, player.y));
@@ -208,9 +228,7 @@ function maintainZones() {
 
 function initializeZones() {
   if (zones.length > 0) return;
-  while (zones.length < ZONE_COUNT) {
-    spawnZoneNear(60, 120);
-  }
+  while (zones.length < ZONE_COUNT) spawnZoneNear(60, 120);
   emitZones();
 }
 
@@ -227,9 +245,9 @@ function triggerZone(socketId, zoneId, ack) {
     return;
   }
 
-  zone.active = false;
+  zone.active     = false;
   zone.respawning = true;
-  const anchor = zoneAnchorFor(socketId, zone);
+  const anchor    = zoneAnchorFor(socketId, zone);
   emitZones();
 
   if (typeof ack === 'function') ack(true);
@@ -237,35 +255,41 @@ function triggerZone(socketId, zoneId, ack) {
   setTimeout(() => {
     const currentZone = zones.find(entry => entry.id === zone.id);
     if (!currentZone || currentZone.respawning !== true) return;
+
     const position = clampZonePosition(
       anchor.x + (Math.random() - 0.5) * 1600,
       anchor.y + (Math.random() - 0.5) * 1600
     );
-    const type = ZONE_TYPES[Math.floor(Math.random() * ZONE_TYPES.length)];
+    const type     = ZONE_TYPES[Math.floor(Math.random() * ZONE_TYPES.length)];
     const gameType = ZONE_GAME_TYPES[Math.floor(Math.random() * ZONE_GAME_TYPES.length)];
-    currentZone.x = position.x;
-    currentZone.y = position.y;
-    currentZone.color = type.color;
-    currentZone.label = type.label;
-    currentZone.gameType = gameType;
-    currentZone.active = true;
+
+    currentZone.x          = position.x;
+    currentZone.y          = position.y;
+    currentZone.color      = type.color;
+    currentZone.label      = type.label;
+    currentZone.gameType   = gameType;
+    currentZone.active     = true;
     currentZone.respawning = false;
-    currentZone.pulseT = 0;
+    currentZone.pulseT     = 0;
+
     maintainZones();
   }, ZONE_RESPAWN_MS);
 }
 
+// SOCKET EVENTS
+
 io.on('connection', (socket) => {
   console.log('Player connected:', socket.id);
+
   const team = Object.keys(players).length % 2 === 0 ? 'blue' : 'red';
   players[socket.id] = {
-    id: socket.id,
-    x: team === 'blue' ? 60 : 39940,
-    y: 120,
+    id:     socket.id,
+    x:      team === 'blue' ? 60 : 39940,
+    y:      120,
     radius: 8,
     team,
-    score: 0,
-    name: 'Player',
+    score:  0,
+    name:   'Player',
   };
 
   initializeZones();
@@ -274,17 +298,16 @@ io.on('connection', (socket) => {
   socket.emit('syncTime', getTimeLeft());
 
   socket.on('setUsername', (name) => {
-    if (players[socket.id]) {
-      players[socket.id].name = name;
-      socket.broadcast.emit('newPlayer', players[socket.id]);
-      socket.broadcast.emit('playerUpdated', { id: socket.id, name });
-    }
+    if (!players[socket.id]) return;
+    players[socket.id].name = name;
+    socket.broadcast.emit('newPlayer', players[socket.id]);
+    socket.broadcast.emit('playerUpdated', { id: socket.id, name });
   });
 
   socket.on('playerMovement', (data) => {
     if (!players[socket.id]) return;
     Object.assign(players[socket.id], {
-      x: data.x, y: data.y, lastDx: data.lastDx, lastDy: data.lastDy
+      x: data.x, y: data.y, lastDx: data.lastDx, lastDy: data.lastDy,
     });
     socket.broadcast.emit('playerMoved', players[socket.id]);
     maintainZones();
@@ -319,6 +342,8 @@ io.on('connection', (socket) => {
   });
 });
 
-initDB().then(() => {
-  server.listen(PORT, () => console.log(`Server running → http://localhost:${PORT}`));
-}).catch(err => { console.error('DB init failed:', err); process.exit(1); });
+// INIT
+
+initDB()
+  .then(() => server.listen(PORT, () => console.log(`Server running → http://localhost:${PORT}`)))
+  .catch(err => { console.error('DB init failed:', err); process.exit(1); });
