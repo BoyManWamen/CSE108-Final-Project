@@ -1,7 +1,6 @@
 const MINIGAME_TIME = 30;
 
 const Minigame = {
-  // player state
   active:      false,
   triggeredBy: null,
   type:        null,
@@ -10,84 +9,63 @@ const Minigame = {
   timer:       null,
   timeLeft:    MINIGAME_TIME,
 
-  // ✅ separate AI state
   aiActive:    false,
   aiAnswer:    null,
   aiChoices:   null,
   aiType:      null,
 
   async start(triggeredBy, gameType) {
-    console.log("Starting game:", gameType, "by:", triggeredBy);
-
     if (triggeredBy === "player" && this.active) return;
     if (triggeredBy === "ai" && this.aiActive) return;
 
     if (triggeredBy === "ai") {
       this.aiActive = true;
       this.aiType   = gameType;
-
-      // build game to get answer and choices
       const tempGame = await this.buildGameData(gameType);
       if (!tempGame) { this.aiActive = false; return; }
-
       this.aiAnswer  = tempGame.answer;
       this.aiChoices = tempGame.choices;
-
-      // ✅ resolve immediately
       const aiWins = Math.random() < 0.6;
-      const pick   = aiWins ? this.aiAnswer : this.aiChoices.find(c => c !== this.aiAnswer);
       this.finishAI(aiWins);
       return;
     }
 
-    // player game
     this.active      = true;
     this.triggeredBy = "player";
     this.type        = gameType;
 
-    if (this.type === "color")       this.buildColorGame();
+    if      (this.type === "color")  this.buildColorGame();
     else if (this.type === "math")   this.buildMathGame();
     else if (this.type === "blank")  await this.buildFillBlankGame();
     else if (this.type === "typing") await this.buildTypingGame();
 
     this.showOverlay();
     this.startTimer();
-
     if (this.type === "typing") setTimeout(() => this.setupTypingSubmit(), 50);
   },
 
-  // ✅ builds game data and returns answer/choices without touching shared state
   async buildGameData(gameType) {
     if (gameType === "color") {
-      const colors = ["#e74c3c", "#3498db", "#2ecc71", "#f1c40f", "#9b59b6", "#e67e22"];
+      const colors = ["#e74c3c","#3498db","#2ecc71","#f1c40f","#9b59b6","#e67e22"];
       const answer  = colors[Math.floor(Math.random() * colors.length)];
       const choices = colors.filter(c => c !== answer).sort(() => Math.random() - 0.5).slice(0, 3);
       choices.push(answer);
       return { answer, choices };
     }
-
     if (gameType === "math") {
       const ops = ["+", "-"];
       const op  = ops[Math.floor(Math.random() * ops.length)];
       let a, b, answer;
-      if (op === "+") {
-        a = Math.floor(Math.random() * 10) + 1;
-        b = Math.floor(Math.random() * 10) + 1;
-        answer = a + b;
-      } else {
-        a = Math.floor(Math.random() * 10) + 5;
-        b = Math.floor(Math.random() * a) + 1;
-        answer = a - b;
-      }
+      if (op === "+") { a = Math.floor(Math.random()*10)+1; b = Math.floor(Math.random()*10)+1; answer = a+b; }
+      else { a = Math.floor(Math.random()*10)+5; b = Math.floor(Math.random()*a)+1; answer = a-b; }
       const wrongs = new Set();
       while (wrongs.size < 3) {
-        const offset = Math.floor(Math.random() * 5) + 1;
-        const wrong  = answer + (Math.random() < 0.5 ? offset : -offset);
+        const offset = Math.floor(Math.random()*5)+1;
+        const wrong  = answer + (Math.random()<0.5 ? offset : -offset);
         if (wrong !== answer && wrong >= 0) wrongs.add(wrong);
       }
       return { answer, choices: [...wrongs, answer] };
     }
-
     if (gameType === "blank") {
       try {
         const res    = await fetch("assets/data/FourLetterwords.txt");
@@ -97,7 +75,7 @@ const Minigame = {
         const blankI = Math.floor(Math.random() * word.length);
         const answer = word[blankI].toUpperCase();
         const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-        const wrongs   = new Set();
+        const wrongs = new Set();
         while (wrongs.size < 3) {
           const letter = alphabet[Math.floor(Math.random() * alphabet.length)];
           if (letter !== answer) wrongs.add(letter);
@@ -105,7 +83,6 @@ const Minigame = {
         return { answer, choices: [...wrongs, answer] };
       } catch { return null; }
     }
-
     if (gameType === "typing") {
       try {
         const res     = await fetch("assets/data/phrases.txt");
@@ -115,15 +92,11 @@ const Minigame = {
         return { answer, choices: [answer] };
       } catch { return null; }
     }
-
     return null;
   },
 
-  // ✅ separate finish for AI — doesn't touch player state
   finishAI(won) {
     this.aiActive = false;
-    console.log("AI finished, won:", won);
-
     if (won) {
       Leaderboard.addWin("ai");
       showNotification("🤖 AI won a minigame!");
@@ -139,43 +112,33 @@ const Minigame = {
   },
 
   buildColorGame() {
-    const colors = ["#e74c3c", "#3498db", "#2ecc71", "#f1c40f", "#9b59b6", "#e67e22"];
+    const colors = ["#e74c3c","#3498db","#2ecc71","#f1c40f","#9b59b6","#e67e22"];
     this.answer  = colors[Math.floor(Math.random() * colors.length)];
-    const others = colors.filter(c => c !== this.answer).sort(() => Math.random() - 0.5).slice(0, 3);
-    this.choices     = [...others, this.answer].sort(() => Math.random() - 0.5);
+    const others = colors.filter(c => c !== this.answer).sort(() => Math.random()-0.5).slice(0,3);
+    this.choices     = [...others, this.answer].sort(() => Math.random()-0.5);
     this.promptHTML  = `<p class="mg-prompt">Match this color!</p>
                         <div class="mg-target" style="background:${this.answer}"></div>`;
     this.choicesHTML = this.choices.map(c =>
-      `<button class="mg-choice" style="background:${c}" data-value="${c}"></button>`
-    ).join("");
+      `<button class="mg-choice" style="background:${c}" data-value="${c}"></button>`).join("");
   },
 
   buildMathGame() {
-    const ops = ["+", "-"];
-    const op  = ops[Math.floor(Math.random() * ops.length)];
+    const ops = ["+","-"];
+    const op  = ops[Math.floor(Math.random()*ops.length)];
     let a, b;
-    if (op === "+") {
-      a = Math.floor(Math.random() * 10) + 1;
-      b = Math.floor(Math.random() * 10) + 1;
-      this.answer = a + b;
-    } else {
-      a = Math.floor(Math.random() * 10) + 5;
-      b = Math.floor(Math.random() * a) + 1;
-      this.answer = a - b;
-    }
-    this.question    = `${a} ${op} ${b} = ?`;
-    const wrongs     = new Set();
+    if (op==="+") { a=Math.floor(Math.random()*10)+1; b=Math.floor(Math.random()*10)+1; this.answer=a+b; }
+    else { a=Math.floor(Math.random()*10)+5; b=Math.floor(Math.random()*a)+1; this.answer=a-b; }
+    this.question = `${a} ${op} ${b} = ?`;
+    const wrongs = new Set();
     while (wrongs.size < 3) {
-      const offset = Math.floor(Math.random() * 5) + 1;
-      const wrong  = this.answer + (Math.random() < 0.5 ? offset : -offset);
+      const offset = Math.floor(Math.random()*5)+1;
+      const wrong  = this.answer + (Math.random()<0.5 ? offset : -offset);
       if (wrong !== this.answer && wrong >= 0) wrongs.add(wrong);
     }
-    this.choices     = [...wrongs, this.answer].sort(() => Math.random() - 0.5);
-    this.promptHTML  = `<p class="mg-prompt">Solve it!</p>
-                        <p class="mg-question">${this.question}</p>`;
+    this.choices     = [...wrongs, this.answer].sort(() => Math.random()-0.5);
+    this.promptHTML  = `<p class="mg-prompt">Solve it!</p><p class="mg-question">${this.question}</p>`;
     this.choicesHTML = this.choices.map(n =>
-      `<button class="mg-choice mg-number" data-value="${n}">${n}</button>`
-    ).join("");
+      `<button class="mg-choice mg-number" data-value="${n}">${n}</button>`).join("");
   },
 
   showOverlay() {
@@ -191,8 +154,7 @@ const Minigame = {
         ${this.promptHTML}
         <div id="mg-choices">${this.choicesHTML}</div>
         <p id="mg-result"></p>
-      </div>
-    `;
+      </div>`;
     overlay.style.display = "flex";
     overlay.querySelectorAll(".mg-choice").forEach(btn => {
       if (btn.id === "typing-submit") return;
@@ -210,23 +172,20 @@ const Minigame = {
     const word   = words[Math.floor(Math.random() * words.length)];
     const blankI = Math.floor(Math.random() * word.length);
     this.answer  = word[blankI].toUpperCase();
-    const display = word.split("").map((l, i) =>
-      i === blankI
-        ? `<span class="mg-blank">_</span>`
-        : `<span class="mg-letter">${l.toUpperCase()}</span>`
+    const display = word.split("").map((l,i) =>
+      i===blankI ? `<span class="mg-blank">_</span>` : `<span class="mg-letter">${l.toUpperCase()}</span>`
     ).join("");
     const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    const wrongs   = new Set();
+    const wrongs = new Set();
     while (wrongs.size < 3) {
-      const letter = alphabet[Math.floor(Math.random() * alphabet.length)];
+      const letter = alphabet[Math.floor(Math.random()*alphabet.length)];
       if (letter !== this.answer) wrongs.add(letter);
     }
-    this.choices     = [...wrongs, this.answer].sort(() => Math.random() - 0.5);
+    this.choices     = [...wrongs, this.answer].sort(() => Math.random()-0.5);
     this.promptHTML  = `<p class="mg-prompt">Fill in the missing letter!</p>
                         <div class="mg-word-display">${display}</div>`;
     this.choicesHTML = this.choices.map(l =>
-      `<button class="mg-choice mg-letter-btn" data-value="${l}">${l}</button>`
-    ).join("");
+      `<button class="mg-choice mg-letter-btn" data-value="${l}">${l}</button>`).join("");
   },
 
   async buildTypingGame() {
@@ -251,13 +210,11 @@ const Minigame = {
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") { e.preventDefault(); this.resolve(input.value.trim()); }
     });
-    submitBtn.addEventListener("click", () => { this.resolve(input.value.trim()); });
+    submitBtn.addEventListener("click", () => this.resolve(input.value.trim()));
     setTimeout(() => input.focus(), 100);
   },
 
-  getWrongAnswer() {
-    return this.choices.find(c => c !== this.answer);
-  },
+  getWrongAnswer() { return this.choices.find(c => c !== this.answer); },
 
   startTimer() {
     this.timeLeft = MINIGAME_TIME;
@@ -265,10 +222,7 @@ const Minigame = {
       this.timeLeft--;
       const el = document.getElementById("mg-timer");
       if (el) el.textContent = this.timeLeft;
-      if (this.timeLeft <= 0) {
-        clearInterval(this.timer);
-        this.resolveTimeout();
-      }
+      if (this.timeLeft <= 0) { clearInterval(this.timer); this.resolveTimeout(); }
     }, 1000);
   },
 
@@ -282,23 +236,18 @@ const Minigame = {
   resolve(picked) {
     if (!this.active) return;
     clearInterval(this.timer);
-    let won;
-    if (this.type === "typing") {
-      won = String(picked).trim().toLowerCase() === this.answer.trim().toLowerCase();
-    } else {
-      won = picked === this.answer;
-    }
+    const won = this.type === "typing"
+      ? String(picked).trim().toLowerCase() === this.answer.trim().toLowerCase()
+      : picked === this.answer;
     const el = document.getElementById("mg-result");
     if (el) el.textContent = won ? "✅ Correct!" : "❌ Wrong!";
     setTimeout(() => this.finish(won), 800);
   },
 
   finish(won) {
-    console.log("finish called, triggeredBy: player, won:", won);
     this.active = false;
     const overlay = document.getElementById("minigame-overlay");
     if (overlay) overlay.style.display = "none";
-
     if (won) {
       Leaderboard.addWin(socket.id);
       socket.emit('minigameWin', {
