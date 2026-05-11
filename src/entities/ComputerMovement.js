@@ -43,7 +43,6 @@ const AI = {
   },
 
   setWaypoint() {
-    // ✅ pick a point at least 300px away so it actually moves away
     let wx, wy;
     do {
       wx = 10 + Math.random() * (COLS * TILE - 20);
@@ -54,7 +53,7 @@ const AI = {
   },
 
   onHitZone() {
-    this.hitZoneCooldown = 60; // ✅ was 120, now 60 frames = ~1 second
+    this.hitZoneCooldown = 60; 
     this.setWaypoint();
     this.targetX = this.waypointX;
     this.targetY = this.waypointY;
