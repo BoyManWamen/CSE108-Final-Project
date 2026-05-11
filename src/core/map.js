@@ -318,10 +318,6 @@ window.addEventListener("keydown", (e) => {
   if (key === "arrowdown"  || key === "s") { keys.down  = true; e.preventDefault(); }
   if (key === "arrowleft"  || key === "a") { keys.left  = true; e.preventDefault(); }
   if (key === "arrowright" || key === "d") { keys.right = true; e.preventDefault(); }
-  if (key === "m") {
-    const types = ["color", "math", "blank", "typing"];
-    Minigame.start("player", types[Math.floor(Math.random() * types.length)]);
-  }
 });
 
 window.addEventListener("keyup", (e) => {
