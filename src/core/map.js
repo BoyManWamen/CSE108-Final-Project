@@ -66,7 +66,12 @@ socket.on('newPlayer', (playerInfo) => {
 });
 
 socket.on('playerUpdated', (data) => {
-  if (data.id !== socket.id) {
+  if (data.id === socket.id) {
+    if (typeof Leaderboard !== "undefined" && Leaderboard.scores[socket.id]) {
+      Leaderboard.scores[socket.id].name = data.name;
+      Leaderboard.updateSidebar();
+    }
+  } else {
     if (otherPlayers[data.id]) otherPlayers[data.id].name = data.name;
     if (typeof Leaderboard !== "undefined" && Leaderboard.scores[data.id]) {
       Leaderboard.scores[data.id].name = data.name;
