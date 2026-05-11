@@ -121,7 +121,7 @@ io.on('connection', (socket) => {
     if (players[socket.id]) {
       players[socket.id].name = name;
       socket.broadcast.emit('newPlayer', players[socket.id]);
-      io.emit('playerUpdated', { id: socket.id, name });
+      socket.broadcast.emit('playerUpdated', { id: socket.id, name });
     }
   });
 

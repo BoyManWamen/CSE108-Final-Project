@@ -66,19 +66,11 @@ socket.on('newPlayer', (playerInfo) => {
 });
 
 socket.on('playerUpdated', (data) => {
-  if (data.id === socket.id) {
-    if (typeof Leaderboard !== "undefined") {
-      if (!Leaderboard.scores[socket.id]) Leaderboard.scores[socket.id] = { wins: 0 };
-      Leaderboard.scores[socket.id].name = data.name;
-      Leaderboard.updateSidebar();
-    }
-  } else {
-    if (otherPlayers[data.id]) otherPlayers[data.id].name = data.name;
-    if (typeof Leaderboard !== "undefined") {
-      if (!Leaderboard.scores[data.id]) Leaderboard.scores[data.id] = { wins: 0 };
-      Leaderboard.scores[data.id].name = data.name;
-      Leaderboard.updateSidebar();
-    }
+  if (otherPlayers[data.id]) otherPlayers[data.id].name = data.name;
+  if (typeof Leaderboard !== "undefined") {
+    if (!Leaderboard.scores[data.id]) Leaderboard.scores[data.id] = { wins: 0 };
+    Leaderboard.scores[data.id].name = data.name;
+    Leaderboard.updateSidebar();
   }
 });
 
