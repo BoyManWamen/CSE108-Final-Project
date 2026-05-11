@@ -3,27 +3,33 @@ const AI = {
   y: 200,
   team: "red",
   state: "ROAM",
-  targetX: COLS * TILE / 2,
-  targetY: ROWS * TILE / 2,
+  targetX: 200,
+  targetY: 200,
   waypointX: null,
   waypointY: null,
   waypointRadius: 15,
   angle: 0,
-  speed: 2,
-
-  setWaypoint() {
-    this.waypointX = 10 + Math.random() * (COLS * TILE - 20);
-    this.waypointY = 10 + Math.random() * (ROWS * TILE - 20);
-  },
+  speed: 3,              
+  hitZoneCooldown: 0,
 
   think() {
+    if (this.hitZoneCooldown > 0) {
+      this.hitZoneCooldown--;
+      return;
+    }
+
     let closestZone = null;
     let closestDist = Infinity;
+
     zones.forEach(zone => {
       if (!zone.active) return;
       const dist = Math.hypot(zone.x - this.x, zone.y - this.y);
-      if (dist < closestDist) { closestDist = dist; closestZone = zone; }
+      if (dist < closestDist) {
+        closestDist = dist;
+        closestZone = zone;
+      }
     });
+
     if (closestZone) {
       this.targetX = closestZone.x;
       this.targetY = closestZone.y;
@@ -36,9 +42,27 @@ const AI = {
     }
   },
 
+  setWaypoint() {
+    // ✅ pick a point at least 300px away so it actually moves away
+    let wx, wy;
+    do {
+      wx = 10 + Math.random() * (COLS * TILE - 20);
+      wy = 10 + Math.random() * (ROWS * TILE - 20);
+    } while (Math.hypot(wx - this.x, wy - this.y) < 300);
+    this.waypointX = wx;
+    this.waypointY = wy;
+  },
+
+  onHitZone() {
+    this.hitZoneCooldown = 60; // ✅ was 120, now 60 frames = ~1 second
+    this.setWaypoint();
+    this.targetX = this.waypointX;
+    this.targetY = this.waypointY;
+  },
+
   move() {
-    const dx = this.targetX - this.x;
-    const dy = this.targetY - this.y;
+    const dx   = this.targetX - this.x;
+    const dy   = this.targetY - this.y;
     const dist = Math.hypot(dx, dy);
     if (dist > 1) {
       this.x += (dx / dist) * this.speed;
@@ -49,5 +73,8 @@ const AI = {
     this.y = Math.max(10, Math.min(this.y, ROWS * TILE - 10));
   },
 
-  step() { this.think(); this.move(); },
+  step() {
+    this.think();
+    this.move();
+  },
 };
