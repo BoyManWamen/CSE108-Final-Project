@@ -117,7 +117,11 @@ function drawZones(ctx) {
 function checkZoneCollision(entity, onTrigger) {
   zones.forEach(zone => {
     if (!zone.active) return;
-    if (Minigame.active) return;
+
+    // ✅ only block if it's a player game — AI can still trigger its own
+    if (Minigame.active && Minigame.triggeredBy === "player") return;
+    if (Minigame.active && Minigame.triggeredBy === "ai") return;
+
     const dist = Math.hypot(entity.x - zone.x, entity.y - zone.y);
     if (dist < ZONE_RADIUS + 8) {
       zone.active = false;
