@@ -2,37 +2,45 @@ const MINIGAME_TIME = 30;
 
 const Minigame = {  
   active:      false,
+  aiactive:    false,
   triggeredBy: null,
   type:        null,
   answer:      null,
   timer:       null,
   timeLeft:    MINIGAME_TIME,
 
-async start(triggeredBy, gameType) {  
-    console.log("Starting game:", gameType);
-    this.active      = true;
-    this.triggeredBy = triggeredBy;  
-    this.type = gameType;
-    
-    if (this.type === "color") this.buildColorGame();
-    else if (this.type === "math") this.buildMathGame();
-    else if (this.type === "sequence") this.buildSequenceGame();
-    else if (this.type === "blank") await this.buildFillBlankGame();
-    else if (this.type === "typing") await this.buildTypingGame();
+  async start(triggeredBy, gameType) {
+    console.log("Starting game:", gameType, "by:", triggeredBy);
+
+    // ✅ guard checks BEFORE setting active
+    if (triggeredBy === "player" && this.active) return;
+    if (triggeredBy === "ai" && this.aiActive) return;
+
+    // ✅ set correct flag
+    if (triggeredBy === "ai") this.aiActive = true;
+    else this.active = true;
+
+    this.triggeredBy = triggeredBy;
+    this.type        = gameType;
+
+    if (this.type === "color")    this.buildColorGame();
+    else if (this.type === "math")     this.buildMathGame();
+    else if (this.type === "blank")    await this.buildFillBlankGame();
+    else if (this.type === "typing")   await this.buildTypingGame();
+
     this.showOverlay();
     this.startTimer();
 
     if (this.type === "typing") setTimeout(() => this.setupTypingSubmit(), 50);
-    
+
     if (triggeredBy === "ai") {
       setTimeout(() => {
-        if (!this.active) return;
+        if (!this.aiActive) return;
         const aiWins = Math.random() < 0.6;
         this.resolve(aiWins ? this.answer : this.getWrongAnswer());
       }, 2000);
     }
   },
-
 
 // MatchingColor Game
   buildColorGame() {
@@ -216,38 +224,42 @@ startTimer() {
     setTimeout(() => this.finish(won), 800);
   },
 
-finish(won) {
-  this.active = false;
-  const overlay = document.getElementById("minigame-overlay");
-  if (overlay) overlay.style.display = "none";
+ finish(won) {
+    console.log("finish called, triggeredBy:", this.triggeredBy, "won:", won);
 
-  if (this.triggeredBy === "player") {
-    if (won) {
-      Leaderboard.addWin(socket.id);
-      // ✅ tell server about the win
-      socket.emit('minigameWin', {
-        id:   socket.id,
-        name: sessionStorage.getItem("username") || "Player",
-        wins: Leaderboard.scores[socket.id]?.wins || 0
-      });
-      showNotification("✅ You won!");
+    // ✅ clear correct flag
+    if (this.triggeredBy === "ai") this.aiActive = false;
+    else this.active = false;
+
+    const overlay = document.getElementById("minigame-overlay");
+    if (overlay) overlay.style.display = "none";
+
+    if (this.triggeredBy === "player") {
+      if (won) {
+        Leaderboard.addWin(socket.id);
+        socket.emit('minigameWin', {
+          id:   socket.id,
+          name: sessionStorage.getItem("username") || "Player",
+          wins: Leaderboard.scores[socket.id]?.wins || 0
+        });
+        showNotification("✅ You won!");
+      } else {
+        Leaderboard.addWin("ai");
+        showNotification("❌ You lost!");
+      }
     } else {
-      Leaderboard.addWin("ai");
-      showNotification("❌ You lost!");
+      if (won) {
+        Leaderboard.addWin("ai");
+        showNotification("🤖 AI won a minigame!");
+      } else {
+        Leaderboard.addWin(socket.id);
+        socket.emit('minigameWin', {
+          id:   socket.id,
+          name: sessionStorage.getItem("username") || "Player",
+          wins: Leaderboard.scores[socket.id]?.wins || 0
+        });
+        showNotification("🤖 AI lost a minigame!");
+      }
     }
-  } else {
-    if (won) {
-      Leaderboard.addWin("ai");
-      showNotification("🤖 AI won a minigame!");
-    } else {
-      Leaderboard.addWin(socket.id);
-      socket.emit('minigameWin', {
-        id:   socket.id,
-        name: sessionStorage.getItem("username") || "Player",
-        wins: Leaderboard.scores[socket.id]?.wins || 0
-      });
-      showNotification("🤖 AI lost a minigame!");
-    }
-  }
-},
+  },
 };
