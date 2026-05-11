@@ -1,74 +1,14 @@
-const ZONE_COUNT        = 3 + Math.floor(Math.random() * 6);
 const ZONE_RADIUS       = 16;
-const ZONE_RESPAWN_MS   = 3000;
-const MIN_ZONE_DISTANCE = 80;
-
-const ZONE_TYPES = [
-  { color: "#e74c3c", label: "Red Square"    },
-  { color: "#3498db", label: "Blue Square"   },
-  { color: "#2ecc71", label: "Green Square"  },
-  { color: "#f1c40f", label: "Yellow Square" },
-  { color: "#9b59b6", label: "Purple Square" },
-];
 
 const zones = [];
 
-function randomZonePosition() {
-  const range = 800;
-  const x = PLAYER.x + (Math.random() - 0.5) * range * 2;
-  const y = PLAYER.y + (Math.random() - 0.5) * range * 2;
-  return {
-    x: Math.max(ZONE_RADIUS + 10, Math.min(x, COLS * TILE - ZONE_RADIUS - 10)),
-    y: Math.max(ZONE_RADIUS + 10, Math.min(y, ROWS * TILE - ZONE_RADIUS - 10)),
-  };
-}
-
-function isTooClose(x, y) {
-  return zones.some(zone => Math.hypot(zone.x - x, zone.y - y) < MIN_ZONE_DISTANCE);
-}
-
-function spawnZone() {
-  zones.forEach(zone => {
-    if (Math.hypot(zone.x - PLAYER.x, zone.y - PLAYER.y) > 1200) zone.active = false;
-  });
-  zones.splice(0, zones.length, ...zones.filter(z => z.active));
-
-  const type      = ZONE_TYPES[Math.floor(Math.random() * ZONE_TYPES.length)];
-  const gameTypes = ["color", "math", "blank", "typing"];
-  const gameType  = gameTypes[Math.floor(Math.random() * gameTypes.length)];
-
-  let position, attempts = 0;
-  do { position = randomZonePosition(); attempts++; }
-  while (isTooClose(position.x, position.y) && attempts < 50);
-
-  zones.push({ x: position.x, y: position.y, color: type.color, label: type.label,
-               gameType, active: true, pulseT: 0 });
-}
-
-function spawnZoneNear(cx, cy) {
-  const range     = 800;
-  const type      = ZONE_TYPES[Math.floor(Math.random() * ZONE_TYPES.length)];
-  const gameTypes = ["color", "math", "blank", "typing"];
-  const gameType  = gameTypes[Math.floor(Math.random() * gameTypes.length)];
-
-  let position, attempts = 0;
-  do {
-    const x = cx + (Math.random() - 0.5) * range * 2;
-    const y = cy + (Math.random() - 0.5) * range * 2;
-    position = {
-      x: Math.max(ZONE_RADIUS + 10, Math.min(x, COLS * TILE - ZONE_RADIUS - 10)),
-      y: Math.max(ZONE_RADIUS + 10, Math.min(y, ROWS * TILE - ZONE_RADIUS - 10)),
-    };
-    attempts++;
-  } while (isTooClose(position.x, position.y) && attempts < 50);
-
-  zones.push({ x: position.x, y: position.y, color: type.color, label: type.label,
-               gameType, active: true, pulseT: 0 });
-}
-
-function initZones() {
-  for (let i = 0; i < ZONE_COUNT; i++) spawnZone();
-}
+socket.on("zoneState", (serverZones) => {
+  const pulseById = new Map(zones.map(zone => [zone.id, zone.pulseT || 0]));
+  zones.splice(0, zones.length, ...serverZones.map(zone => ({
+    ...zone,
+    pulseT: pulseById.get(zone.id) || 0,
+  })));
+});
 
 function drawZones(ctx) {
   zones.forEach(zone => {
@@ -90,9 +30,15 @@ function checkZoneCollision(entity, onTrigger) {
     if (Minigame.aiActive) return;
     const dist = Math.hypot(entity.x - zone.x, entity.y - zone.y);
     if (dist < ZONE_RADIUS + 8) {
+      const wasActive = zone.active;
       zone.active = false;
-      onTrigger(zone.gameType);
-      setTimeout(spawnZone, ZONE_RESPAWN_MS);
+      socket.emit("zoneTriggered", { zoneId: zone.id }, (accepted) => {
+        if (accepted) {
+          onTrigger(zone.gameType);
+          return;
+        }
+        zone.active = wasActive;
+      });
     }
   });
 }

@@ -222,21 +222,9 @@ function updateCamera() {
   }
 }
 
-function maintainZones() {
-  const nearPlayer = zones.filter(z =>
-    z.active && Math.hypot(z.x - PLAYER.x, z.y - PLAYER.y) < 1000
-  );
-  const nearAI = zones.filter(z =>
-    z.active && Math.hypot(z.x - AI.x, z.y - AI.y) < 1000
-  );
-  while (nearPlayer.length < ZONE_COUNT) { spawnZoneNear(PLAYER.x, PLAYER.y); nearPlayer.push({}); }
-  while (nearAI.length     < ZONE_COUNT) { spawnZoneNear(AI.x,     AI.y);     nearAI.push({}); }
-}
-
 function gameLoop() {
   updatePlayer();
   updateCamera();
-  maintainZones();
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.save();
@@ -306,7 +294,6 @@ function showNotification(msg) {
 }
 
 window.addEventListener("load", () => {
-  initZones();
   Leaderboard.init();
   gameLoop();
 });
