@@ -9,7 +9,13 @@ const Leaderboard = {
     const name = sessionStorage.getItem("username") || "Player";
     this.scores[socket.id] = { name, wins: 0 };
     this.buildSidebar();
-    this.startTimer();
+
+    socket.on('syncTime', (timeLeft) => {
+      clearInterval(this.timer);
+      this.timeLeft = timeLeft;
+      this.gameOver = false;
+      this.startTimer();
+    });
   },
 
   addWin(who) {
@@ -112,11 +118,10 @@ const Leaderboard = {
       clearInterval(this.timer);
       this.scores   = {};
       this.aiWins   = 0;
-      this.timeLeft = 120;
       this.gameOver = false;
       this.scores[socket.id] = { name: sessionStorage.getItem("username") || "Player", wins: 0 };
-      this.startTimer();
       this.updateSidebar();
+      socket.emit('restartGame');
     });
   },
 };

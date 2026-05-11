@@ -100,7 +100,14 @@ app.get('/api/leaderboard', async (_req, res) => {
   }
 });
 
+const GAME_DURATION = 120;
 const players = {};
+let gameStartTime = Date.now();
+
+function getTimeLeft() {
+  const elapsed = Math.floor((Date.now() - gameStartTime) / 1000);
+  return Math.max(0, GAME_DURATION - elapsed);
+}
 
 io.on('connection', (socket) => {
   console.log('Player connected:', socket.id);
@@ -116,6 +123,7 @@ io.on('connection', (socket) => {
   };
 
   socket.emit('currentPlayers', players);
+  socket.emit('syncTime', getTimeLeft());
 
   socket.on('setUsername', (name) => {
     if (players[socket.id]) {
@@ -143,6 +151,11 @@ io.on('connection', (socket) => {
       console.error('Win persist error:', err);
     }
     io.emit('scoreUpdate', { id: data.id, name: data.name, wins: data.wins });
+  });
+
+  socket.on('restartGame', () => {
+    gameStartTime = Date.now();
+    io.emit('syncTime', GAME_DURATION);
   });
 
   socket.on('disconnect', () => {
