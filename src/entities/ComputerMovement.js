@@ -13,7 +13,7 @@ const AI = {
   waypointRadius: 15,
 
   angle: 0,
-  speed: 3.5,
+  speed: 2,
 
   setWaypoint() {
     const range = 2000;
