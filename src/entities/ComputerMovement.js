@@ -10,27 +10,44 @@ const AI = {
 
   waypointX: null,
   waypointY: null,
-  waypointRadius: 30,
+  waypointRadius: 15,
 
   angle: 0,
-  speed: 1.8,
+  speed: 3.5,
 
   setWaypoint() {
+    const range = 2000;
     this.waypointX = 10 + Math.random() * (COLS * TILE - 20);
     this.waypointY = 10 + Math.random() * (ROWS * TILE - 20);
   },
 
   think() {
+  // find closest active zone
+  let closestZone = null;
+  let closestDist = Infinity;
+
+  zones.forEach(zone => {
+    if (!zone.active) return;
+    const dist = Math.hypot(zone.x - this.x, zone.y - this.y);
+    if (dist < closestDist) {
+      closestDist = dist;
+      closestZone = zone;
+    }
+  });
+
+  if (closestZone) {
+    // head straight for the closest zone
+    this.targetX = closestZone.x;
+    this.targetY = closestZone.y;
+  } else {
+    // no zones found — wander randomly
     const atWaypoint = this.waypointX === null ||
       Math.hypot(this.waypointX - this.x, this.waypointY - this.y) < this.waypointRadius;
-
-    if (atWaypoint) {
-      this.setWaypoint();
-    }
-
+    if (atWaypoint) this.setWaypoint();
     this.targetX = this.waypointX;
     this.targetY = this.waypointY;
-  },
+  }
+},
 
   move() {
     const dx   = this.targetX - this.x;
