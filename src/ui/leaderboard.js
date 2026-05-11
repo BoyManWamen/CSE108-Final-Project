@@ -2,40 +2,34 @@ const Leaderboard = {
   scores:   {},
   aiWins:   0,
   timeLeft: 120,
-  timer:    null,
   gameOver: false,
 
   init() {
     const name = sessionStorage.getItem("username") || "Player";
-
     this.scores[socket.id] = { name, wins: 0 };
     this.buildSidebar();
-    this.startTimer();
-
-    socket.on("connect", () => {
-      this.scores[socket.id] = { name, wins: 0 };
-      this.buildSidebar();
-      this.startTimer();
-    });
 
     socket.on("syncTime", (timeLeft) => {
-      clearInterval(this.timer);
       this.timeLeft = timeLeft;
-      this.gameOver = false;
-      this.startTimer();
+      this.gameOver = timeLeft <= 0;
+      const el = document.getElementById("lb-timer");
+      if (el) {
+        const mins = Math.floor(this.timeLeft / 60);
+        const secs = String(this.timeLeft % 60).padStart(2, "0");
+        el.textContent = `${mins}:${secs}`;
+      }
+      this.updateSidebar();
     });
   },
 
   addWin(who) {
     if (this.gameOver) return;
-
     if (who === "ai") {
       this.aiWins++;
     } else {
       if (!this.scores[who]) this.scores[who] = { name: "Player", wins: 0 };
       this.scores[who].wins++;
     }
-
     this.updateSidebar();
   },
 
@@ -48,26 +42,6 @@ const Leaderboard = {
   removePlayer(id) {
     delete this.scores[id];
     this.updateSidebar();
-  },
-
-  startTimer() {
-    this.timer = setInterval(() => {
-      if (this.gameOver) return;
-
-      this.timeLeft--;
-
-      const el = document.getElementById("lb-timer");
-      if (el) {
-        const mins = Math.floor(this.timeLeft / 60);
-        const secs = String(this.timeLeft % 60).padStart(2, "0");
-        el.textContent = `${mins}:${secs}`;
-      }
-
-      if (this.timeLeft <= 0) {
-        clearInterval(this.timer);
-        this.showEndScreen();
-      }
-    }, 1000);
   },
 
   buildSidebar() {
@@ -115,7 +89,7 @@ const Leaderboard = {
     let winnerName = "AI";
     let winnerWins = this.aiWins;
 
-    Object.entries(this.scores).forEach(([id, data]) => {
+    Object.entries(this.scores).forEach(([, data]) => {
       if (data.wins > winnerWins) {
         winnerName = data.name;
         winnerWins = data.wins;
@@ -124,7 +98,7 @@ const Leaderboard = {
 
     const allScores = Object.entries(this.scores)
       .sort((a, b) => b[1].wins - a[1].wins)
-      .map(([id, data]) => `
+      .map(([, data]) => `
         <div class="end-score-row">
           <span>${data.name}</span>
           <span>${data.wins} wins</span>
@@ -149,23 +123,11 @@ const Leaderboard = {
             <span>${this.aiWins} wins</span>
           </div>
         </div>
-        <button id="end-restart">Play Again</button>
+        <p style="color:#aaa;font-family:monospace;font-size:13px;margin-top:12px;">
+          New game starts automatically in 10 seconds…
+        </p>
       </div>`;
 
     screen.style.display = "flex";
-
-    document.getElementById("end-restart").addEventListener("click", () => {
-      screen.style.display = "none";
-      clearInterval(this.timer);
-      this.scores   = {};
-      this.aiWins   = 0;
-      this.gameOver = false;
-      this.scores[socket.id] = {
-        name: sessionStorage.getItem("username") || "Player",
-        wins: 0,
-      };
-      this.updateSidebar();
-      socket.emit("restartGame");
-    });
   },
 };

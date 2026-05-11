@@ -5,9 +5,9 @@ const socket = io();
 const _username    = sessionStorage.getItem("username") || "Player";
 const otherPlayers = {};
 
-const TILE = 20;
-const COLS = 2000;
-const ROWS = 2000;
+let TILE = 20;
+let COLS = 100;
+let ROWS = 60;
 
 const camera = {
   x: 0,
@@ -17,23 +17,20 @@ const camera = {
 };
 
 const COLORS = ["#23233a", "#444441", "#888780", "#639922", "#E24B4A", "#378ADD"];
-const MAP    = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+
+let MAP = null;
 
 const PLAYER = {
-  x:      60,
+  x:      300,
   y:      120,
   radius: 8,
   speed:  2.4,
   lastDx: 0,
   lastDy: 1,
+  team:   'blue',
 };
 
-const keys = {
-  up:    false,
-  down:  false,
-  left:  false,
-  right: false,
-};
+const keys = { up: false, down: false, left: false, right: false };
 
 function resizeCanvas() {
   canvas.width    = window.innerWidth;
@@ -45,7 +42,14 @@ function resizeCanvas() {
 resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
 
-// SOCKET EVENTS
+socket.on("mapConfig", (cfg) => {
+  TILE = cfg.TILE;
+  COLS = cfg.COLS;
+  ROWS = cfg.ROWS;
+  MAP  = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+  AI.mapW = COLS * TILE;
+  AI.mapH = ROWS * TILE;
+});
 
 socket.on("currentPlayers", (players) => {
   Object.keys(players).forEach((id) => {
@@ -55,6 +59,8 @@ socket.on("currentPlayers", (players) => {
         Leaderboard.addPlayer(id, players[id].name || "Player");
     } else {
       PLAYER.team = players[id].team;
+      PLAYER.x    = players[id].x;
+      PLAYER.y    = players[id].y;
       if (typeof Leaderboard !== "undefined") {
         const name = sessionStorage.getItem("username") || "Player";
         Leaderboard.scores[socket.id] = { name, wins: 0 };
@@ -81,12 +87,12 @@ socket.on("playerUpdated", (data) => {
 
 socket.on("playerMoved", (playerInfo) => {
   if (!otherPlayers[playerInfo.id]) return;
-  const p    = otherPlayers[playerInfo.id];
-  p.x        = playerInfo.x;
-  p.y        = playerInfo.y;
-  p.lastDx   = playerInfo.lastDx;
-  p.lastDy   = playerInfo.lastDy;
-  p.name     = playerInfo.name;
+  const p  = otherPlayers[playerInfo.id];
+  p.x      = playerInfo.x;
+  p.y      = playerInfo.y;
+  p.lastDx = playerInfo.lastDx;
+  p.lastDy = playerInfo.lastDy;
+  p.name   = playerInfo.name;
 });
 
 socket.on("playerDisconnected", (playerId) => {
@@ -96,16 +102,62 @@ socket.on("playerDisconnected", (playerId) => {
 });
 
 socket.on("scoreUpdate", (data) => {
-  if (data.id === socket.id || typeof Leaderboard === "undefined") return;
+  if (typeof Leaderboard === "undefined") return;
   if (!Leaderboard.scores[data.id]) Leaderboard.scores[data.id] = { wins: 0 };
   Leaderboard.scores[data.id].name = data.name;
   Leaderboard.scores[data.id].wins = data.wins;
   Leaderboard.updateSidebar();
 });
 
-// DRAW
+socket.on("aiState", (data) => {
+  AI.x = data.x; AI.y = data.y; AI.angle = data.angle; AI.team = data.team;
+});
+
+socket.on("aiMoved", (data) => {
+  AI.x = data.x; AI.y = data.y; AI.angle = data.angle;
+});
+
+socket.on("aiMinigameResult", (data) => {
+  if (data.won) {
+    Leaderboard.addWin("ai");
+    showNotification("🤖 AI won a minigame!");
+  } else {
+    showNotification("🤖 AI failed a minigame!");
+  }
+});
+
+socket.on("gameOver", () => {
+  if (typeof Leaderboard !== "undefined") Leaderboard.showEndScreen();
+});
+
+socket.on("gameRestarted", () => {
+  const screen = document.getElementById("end-screen");
+  if (screen) screen.style.display = "none";
+  if (typeof Leaderboard !== "undefined") {
+    Leaderboard.scores = {};
+    Leaderboard.aiWins = 0;
+    Leaderboard.gameOver = false;
+    Leaderboard.scores[socket.id] = {
+      name: sessionStorage.getItem("username") || "Player",
+      wins: 0,
+    };
+    Leaderboard.updateSidebar();
+  }
+});
+
+socket.on("scoresReset", () => {
+  if (typeof Leaderboard !== "undefined") {
+    Object.keys(Leaderboard.scores).forEach(id => {
+      Leaderboard.scores[id].wins = 0;
+    });
+    Leaderboard.aiWins = 0;
+    Leaderboard.updateSidebar();
+  }
+});
 
 function draw() {
+  if (!MAP) return;
+
   const startCol = Math.max(0, Math.floor(camera.x / TILE));
   const endCol   = Math.min(COLS, Math.ceil((camera.x + camera.width)  / TILE));
   const startRow = Math.max(0, Math.floor(camera.y / TILE));
@@ -118,20 +170,17 @@ function draw() {
     }
   }
 
-  // blue base
   ctx.fillStyle   = "rgba(55,138,221,0.2)";
   ctx.fillRect(0, 0, 3 * TILE, ROWS * TILE);
   ctx.strokeStyle = "#378ADD";
   ctx.lineWidth   = 2;
   ctx.strokeRect(1, 1, 3 * TILE - 2, ROWS * TILE - 2);
 
-  // red base
   ctx.fillStyle   = "rgba(226,75,74,0.2)";
   ctx.fillRect((COLS - 3) * TILE, 0, 3 * TILE, ROWS * TILE);
   ctx.strokeStyle = "#E24B4A";
   ctx.strokeRect((COLS - 3) * TILE + 1, 1, 3 * TILE - 2, ROWS * TILE - 2);
 
-  // center line
   ctx.setLineDash([4, 4]);
   ctx.strokeStyle = "rgba(255,255,255,0.2)";
   ctx.lineWidth   = 1;
@@ -193,11 +242,8 @@ function drawOtherPlayers() {
   });
 }
 
-// UPDATE
-
 function updatePlayer() {
-  let dx = 0;
-  let dy = 0;
+  let dx = 0, dy = 0;
   if (keys.left)  dx -= 1;
   if (keys.right) dx += 1;
   if (keys.up)    dy -= 1;
@@ -212,38 +258,37 @@ function updatePlayer() {
     PLAYER.lastDx = dx;
     PLAYER.lastDy = dy;
     socket.emit("playerMovement", {
-      x:      PLAYER.x,
-      y:      PLAYER.y,
-      lastDx: PLAYER.lastDx,
-      lastDy: PLAYER.lastDy,
+      x: PLAYER.x, y: PLAYER.y, lastDx: PLAYER.lastDx, lastDy: PLAYER.lastDy,
     });
   }
 
-  PLAYER.x = Math.max(PLAYER.radius, Math.min(PLAYER.x, COLS * TILE - PLAYER.radius));
-  PLAYER.y = Math.max(PLAYER.radius, Math.min(PLAYER.y, ROWS * TILE - PLAYER.radius));
+  const mapW = COLS * TILE;
+  const mapH = ROWS * TILE;
+  PLAYER.x = Math.max(PLAYER.radius, Math.min(PLAYER.x, mapW - PLAYER.radius));
+  PLAYER.y = Math.max(PLAYER.radius, Math.min(PLAYER.y, mapH - PLAYER.radius));
 }
 
 function updateCamera() {
+  const mapW = COLS * TILE;
+  const mapH = ROWS * TILE;
+
   camera.x = PLAYER.x - camera.width  / 2;
   camera.y = PLAYER.y - camera.height / 2;
 
-  if (COLS * TILE > camera.width) {
-    camera.x = Math.max(0, Math.min(camera.x, COLS * TILE - camera.width));
+  if (mapW > camera.width) {
+    camera.x = Math.max(0, Math.min(camera.x, mapW - camera.width));
   } else {
-    camera.x = (COLS * TILE - camera.width) / 2;
+    camera.x = (mapW - camera.width) / 2;
   }
 
-  if (ROWS * TILE > camera.height) {
-    camera.y = Math.max(0, Math.min(camera.y, ROWS * TILE - camera.height));
+  if (mapH > camera.height) {
+    camera.y = Math.max(0, Math.min(camera.y, mapH - camera.height));
   } else {
-    camera.y = (ROWS * TILE - camera.height) / 2;
+    camera.y = (mapH - camera.height) / 2;
   }
 }
 
-// GAME LOOP
-
 function gameLoop() {
-  AI.step();
   updatePlayer();
   updateCamera();
 
@@ -252,23 +297,22 @@ function gameLoop() {
   ctx.translate(-camera.x, -camera.y);
 
   draw();
-  drawZones(ctx);
+  if (typeof drawZones === "function") drawZones(ctx);
   drawAI();
   drawPlayer();
   drawOtherPlayers();
 
   ctx.restore();
 
-  checkZoneCollision(PLAYER, (gameType) => Minigame.start("player", gameType));
-  checkZoneCollision(AI,     (gameType) => Minigame.start("ai",     gameType));
+  if (typeof checkZoneCollision === "function") {
+    checkZoneCollision(PLAYER, (gameType) => Minigame.start("player", gameType));
+  }
 
   requestAnimationFrame(gameLoop);
 }
-// INPUT
 
 window.addEventListener("keydown", (e) => {
   if (document.activeElement?.id === "typing-input") return;
-
   const key = e.key.toLowerCase();
   if (key === "arrowup"    || key === "w") { keys.up    = true; e.preventDefault(); }
   if (key === "arrowdown"  || key === "s") { keys.down  = true; e.preventDefault(); }
@@ -288,40 +332,35 @@ window.addEventListener("keyup", (e) => {
   if (key === "arrowright" || key === "d") keys.right = false;
 });
 
-// NOTIFICATION
-
 function showNotification(msg) {
   let el = document.getElementById("game-notification");
   if (!el) {
     el = document.createElement("div");
     el.id = "game-notification";
     Object.assign(el.style, {
-      position:    "fixed",
-      bottom:      "30px",
-      left:        "50%",
-      transform:   "translateX(-50%)",
-      background:  "rgba(0,0,0,0.75)",
-      color:       "white",
-      padding:     "10px 20px",
-      borderRadius:"8px",
-      fontFamily:  "monospace",
-      fontSize:    "16px",
-      transition:  "opacity 0.5s",
-      zIndex:      "99",
+      position:     "fixed",
+      bottom:       "30px",
+      left:         "50%",
+      transform:    "translateX(-50%)",
+      background:   "rgba(0,0,0,0.75)",
+      color:        "white",
+      padding:      "10px 20px",
+      borderRadius: "8px",
+      fontFamily:   "monospace",
+      fontSize:     "16px",
+      transition:   "opacity 0.5s",
+      zIndex:       "99",
     });
     document.body.appendChild(el);
   }
-
   el.textContent = msg;
   el.style.opacity = "1";
   clearTimeout(el._timeout);
   el._timeout = setTimeout(() => { el.style.opacity = "0"; }, 2500);
 }
 
-// INIT
 window.addEventListener("load", () => {
-  AI.x = PLAYER.x + 80;
-  AI.y = PLAYER.y;
   Leaderboard.init();
   gameLoop();
+  socket.emit("setUsername", _username);
 });
