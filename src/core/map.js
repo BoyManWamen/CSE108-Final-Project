@@ -2,6 +2,9 @@ const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 const socket = io();
 
+const _username = sessionStorage.getItem("username") || "Player";
+socket.emit("setUsername", _username);
+
 const otherPlayers = {};
 
 const TILE = 20;
@@ -44,7 +47,6 @@ function resizeCanvas() {
 resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
 
-// ── SOCKET LISTENERS (single set) ─────────────────────────────────────────
 socket.on('currentPlayers', (players) => {
   Object.keys(players).forEach((id) => {
     if (id !== socket.id) {
@@ -65,10 +67,11 @@ socket.on('newPlayer', (playerInfo) => {
 
 socket.on('playerMoved', (playerInfo) => {
   if (otherPlayers[playerInfo.id]) {
-    otherPlayers[playerInfo.id].x = playerInfo.x;
-    otherPlayers[playerInfo.id].y = playerInfo.y;
+    otherPlayers[playerInfo.id].x      = playerInfo.x;
+    otherPlayers[playerInfo.id].y      = playerInfo.y;
     otherPlayers[playerInfo.id].lastDx = playerInfo.lastDx;
     otherPlayers[playerInfo.id].lastDy = playerInfo.lastDy;
+    otherPlayers[playerInfo.id].name   = playerInfo.name;
   }
 });
 
@@ -80,7 +83,6 @@ socket.on('playerDisconnected', (playerId) => {
 
 socket.on('scoreUpdate', (data) => {
   if (data.id !== socket.id) {
-    // update another player's score on our leaderboard
     if (typeof Leaderboard !== "undefined") {
       if (!Leaderboard.scores[data.id]) {
         Leaderboard.scores[data.id] = { name: data.name, wins: 0 };
@@ -91,7 +93,6 @@ socket.on('scoreUpdate', (data) => {
   }
 });
 
-// ── DRAW ──────────────────────────────────────────────────────────────────
 function draw() {
   const startCol = Math.max(0, Math.floor(camera.x / TILE));
   const endCol   = Math.min(COLS, Math.ceil((camera.x + camera.width) / TILE));
@@ -137,7 +138,7 @@ function drawAI() {
   ctx.fill();
   ctx.fillStyle = "white";
   ctx.font = "10px monospace";
-  ctx.fillText(AI.state, AI.x + 12, AI.y - 8);
+  ctx.fillText("🤖 AI", AI.x + 12, AI.y - 8);
 }
 
 function drawPlayer() {
@@ -154,7 +155,7 @@ function drawPlayer() {
   ctx.fill();
   ctx.fillStyle = "white";
   ctx.font = "10px monospace";
-  ctx.fillText("YOU", PLAYER.x + 12, PLAYER.y - 8);
+  ctx.fillText(_username, PLAYER.x + 12, PLAYER.y - 8);
 }
 
 function drawOtherPlayers() {
@@ -168,7 +169,7 @@ function drawOtherPlayers() {
     ctx.stroke();
     ctx.fillStyle = "white";
     ctx.font = "10px monospace";
-    ctx.fillText("ENEMY", p.x + 12, p.y - 8);
+    ctx.fillText(p.name || "Player", p.x + 12, p.y - 8);
   });
 }
 
@@ -213,30 +214,17 @@ function updateCamera() {
   }
 }
 
-// ── ZONES ─────────────────────────────────────────────────────────────────
 function maintainZones() {
-  // spawn near both player AND ai
   const nearPlayer = zones.filter(z =>
     z.active && Math.hypot(z.x - PLAYER.x, z.y - PLAYER.y) < 1000
   );
   const nearAI = zones.filter(z =>
     z.active && Math.hypot(z.x - AI.x, z.y - AI.y) < 1000
   );
-
-  // keep enough zones near player
-  while (nearPlayer.length < ZONE_COUNT) {
-    spawnZoneNear(PLAYER.x, PLAYER.y);
-    nearPlayer.push({});
-  }
-
-  // keep enough zones near AI
-  while (nearAI.length < ZONE_COUNT) {
-    spawnZoneNear(AI.x, AI.y);
-    nearAI.push({});
-  }
+  while (nearPlayer.length < ZONE_COUNT) { spawnZoneNear(PLAYER.x, PLAYER.y); nearPlayer.push({}); }
+  while (nearAI.length     < ZONE_COUNT) { spawnZoneNear(AI.x,     AI.y);     nearAI.push({}); }
 }
 
-// ── GAME LOOP ─────────────────────────────────────────────────────────────
 function gameLoop() {
   updatePlayer();
   updateCamera();
@@ -267,51 +255,41 @@ function gameLoop() {
   requestAnimationFrame(gameLoop);
 }
 
-// ── KEYS ──────────────────────────────────────────────────────────────────
 window.addEventListener("keydown", (e) => {
   if (document.activeElement?.id === "typing-input") return;
 
   const key = e.key.toLowerCase();
-
-  if (key === "arrowup" || key === "w") {
-    keys.up = true;
-    e.preventDefault();
-  }
-  if (key === "arrowdown" || key === "s") {
-    keys.down = true;
-    e.preventDefault();
-  }
-  if (key === "arrowleft" || key === "a") {
-    keys.left = true;
-    e.preventDefault();
-  }
-  if (key === "arrowright" || key === "d") {
-    keys.right = true;
-    e.preventDefault();
-  }
-
+  if (key === "arrowup"    || key === "w") { keys.up    = true; e.preventDefault(); }
+  if (key === "arrowdown"  || key === "s") { keys.down  = true; e.preventDefault(); }
+  if (key === "arrowleft"  || key === "a") { keys.left  = true; e.preventDefault(); }
+  if (key === "arrowright" || key === "d") { keys.right = true; e.preventDefault(); }
   if (key === "m") {
     const types = ["color", "math", "blank", "typing"];
-    const type = types[Math.floor(Math.random() * types.length)];
-    Minigame.start("player", type);
+    Minigame.start("player", types[Math.floor(Math.random() * types.length)]);
   }
 });
 
 window.addEventListener("keyup", (e) => {
   const key = e.key.toLowerCase();
-  if (key === "arrowup" || key === "w") keys.up = false;
-  if (key === "arrowdown" || key === "s") keys.down = false;
-  if (key === "arrowleft" || key === "a") keys.left = false;
+  if (key === "arrowup"    || key === "w") keys.up    = false;
+  if (key === "arrowdown"  || key === "s") keys.down  = false;
+  if (key === "arrowleft"  || key === "a") keys.left  = false;
   if (key === "arrowright" || key === "d") keys.right = false;
 });
-
-
 
 function showNotification(msg) {
   let el = document.getElementById("game-notification");
   if (!el) {
     el = document.createElement("div");
     el.id = "game-notification";
+    Object.assign(el.style, {
+      position: "fixed", bottom: "30px", left: "50%",
+      transform: "translateX(-50%)",
+      background: "rgba(0,0,0,0.75)", color: "white",
+      padding: "10px 20px", borderRadius: "8px",
+      fontFamily: "monospace", fontSize: "16px",
+      transition: "opacity 0.5s", zIndex: "99",
+    });
     document.body.appendChild(el);
   }
   el.textContent = msg;
@@ -320,7 +298,6 @@ function showNotification(msg) {
   el._timeout = setTimeout(() => { el.style.opacity = "0"; }, 2500);
 }
 
-// ── INIT ──────────────────────────────────────────────────────────────────
 window.addEventListener("load", () => {
   initZones();
   Leaderboard.init();

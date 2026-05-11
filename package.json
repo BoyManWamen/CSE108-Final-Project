@@ -1,8 +1,8 @@
 {
   "name": "cse108-final-project",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Multiplayer minigame arena",
+  "main": "server/server.js",
   "scripts": {
     "start": "node server/server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -15,12 +15,9 @@
   "author": "",
   "license": "ISC",
   "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/BoyManWamen/CSE108-Final-Project/issues"
-  },
-  "homepage": "https://github.com/BoyManWamen/CSE108-Final-Project#readme",
   "dependencies": {
     "express": "^5.2.1",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "pg": "^8.11.3"
   }
 }
