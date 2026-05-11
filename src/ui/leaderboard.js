@@ -24,6 +24,7 @@ const Leaderboard = {
   },
 
   addPlayer(id, name) {
+    if (id === socket.id) return;
     if (!this.scores[id]) this.scores[id] = { name: name || "Player", wins: 0 };
     this.updateSidebar();
   },
@@ -108,6 +109,7 @@ const Leaderboard = {
     screen.style.display = "flex";
     document.getElementById("end-restart").addEventListener("click", () => {
       screen.style.display = "none";
+      clearInterval(this.timer);
       this.scores   = {};
       this.aiWins   = 0;
       this.timeLeft = 120;
