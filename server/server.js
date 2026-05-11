@@ -2,9 +2,8 @@ const express    = require('express');
 const http       = require('http');
 const { Server } = require('socket.io');
 const path       = require('path');
-const fs         = require('fs');
 const crypto     = require('crypto');
-const initSqlJs  = require('sql.js');
+const { Pool }   = require('pg');
 
 const app    = express();
 const server = http.createServer(app);
@@ -14,45 +13,24 @@ const PORT   = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../')));
 
-const DB_PATH = '/data/game.db';
-let db;
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+});
 
 async function initDB() {
-  const SQL = await initSqlJs();
-  db = fs.existsSync(DB_PATH)
-    ? new SQL.Database(fs.readFileSync(DB_PATH))
-    : new SQL.Database();
-
-  db.run(`
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
-      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      id            SERIAL PRIMARY KEY,
       username      TEXT UNIQUE NOT NULL,
       email         TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
       salt          TEXT NOT NULL,
       total_wins    INTEGER NOT NULL DEFAULT 0,
-      created_at    INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+      created_at    BIGINT NOT NULL DEFAULT extract(epoch from now())
     )
   `);
-  saveDB();
   console.log('Database ready.');
-}
-
-function saveDB() {
-  fs.writeFileSync(DB_PATH, Buffer.from(db.export()));
-}
-
-function dbGet(sql, params = []) {
-  const stmt = db.prepare(sql);
-  stmt.bind(params);
-  const row = stmt.step() ? stmt.getAsObject() : null;
-  stmt.free();
-  return row;
-}
-
-function dbRun(sql, params = []) {
-  db.run(sql, params);
-  saveDB();
 }
 
 function hashPassword(plaintext) {
@@ -66,7 +44,7 @@ function verifyPassword(plaintext, storedHash, salt) {
   return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(storedHash, 'hex'));
 }
 
-app.post('/api/register', (req, res) => {
+app.post('/api/register', async (req, res) => {
   const { username, email, password } = req.body;
   if (!username || !email || !password)
     return res.status(400).json({ error: 'All fields are required.' });
@@ -75,11 +53,17 @@ app.post('/api/register', (req, res) => {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
     return res.status(400).json({ error: 'Invalid email address.' });
   try {
-    if (dbGet('SELECT id FROM users WHERE username = ? OR email = ?', [username, email]))
+    const existing = await pool.query(
+      'SELECT id FROM users WHERE username = $1 OR email = $2',
+      [username, email]
+    );
+    if (existing.rows.length > 0)
       return res.status(409).json({ error: 'Username or email already taken.' });
     const { salt, hash } = hashPassword(password);
-    dbRun('INSERT INTO users (username, email, password_hash, salt) VALUES (?, ?, ?, ?)',
-          [username, email, hash, salt]);
+    await pool.query(
+      'INSERT INTO users (username, email, password_hash, salt) VALUES ($1, $2, $3, $4)',
+      [username, email, hash, salt]
+    );
     res.json({ ok: true });
   } catch (err) {
     console.error('Register error:', err);
@@ -87,13 +71,15 @@ app.post('/api/register', (req, res) => {
   }
 });
 
-app.post('/api/login', (req, res) => {
+app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password)
     return res.status(400).json({ error: 'All fields are required.' });
   try {
-    const user = dbGet('SELECT * FROM users WHERE username = ?', [username]);
-    if (!user) return res.status(401).json({ error: 'Username not found.' });
+    const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+    if (result.rows.length === 0)
+      return res.status(401).json({ error: 'Username not found.' });
+    const user = result.rows[0];
     if (!verifyPassword(password, user.password_hash, user.salt))
       return res.status(401).json({ error: 'Incorrect password.' });
     res.json({ ok: true, username: user.username, totalWins: user.total_wins });
@@ -103,13 +89,12 @@ app.post('/api/login', (req, res) => {
   }
 });
 
-app.get('/api/leaderboard', (_req, res) => {
+app.get('/api/leaderboard', async (_req, res) => {
   try {
-    const stmt = db.prepare('SELECT username, total_wins FROM users ORDER BY total_wins DESC LIMIT 10');
-    const rows = [];
-    while (stmt.step()) rows.push(stmt.getAsObject());
-    stmt.free();
-    res.json(rows);
+    const result = await pool.query(
+      'SELECT username, total_wins FROM users ORDER BY total_wins DESC LIMIT 10'
+    );
+    res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: 'Server error.' });
   }
@@ -148,9 +133,12 @@ io.on('connection', (socket) => {
     socket.broadcast.emit('playerMoved', players[socket.id]);
   });
 
-  socket.on('minigameWin', (data) => {
+  socket.on('minigameWin', async (data) => {
     try {
-      dbRun('UPDATE users SET total_wins = total_wins + 1 WHERE username = ?', [data.name]);
+      await pool.query(
+        'UPDATE users SET total_wins = total_wins + 1 WHERE username = $1',
+        [data.name]
+      );
     } catch (err) {
       console.error('Win persist error:', err);
     }
