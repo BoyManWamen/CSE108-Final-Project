@@ -5,18 +5,27 @@ const Leaderboard = {
   timer:    null,
   gameOver: false,
 
-  init() {
-    const name = sessionStorage.getItem("username") || "Player";
+init() {
+  const name = sessionStorage.getItem("username") || "Player";
+
+  if (socket.connected) {
     this.scores[socket.id] = { name, wins: 0 };
     this.buildSidebar();
-
-    socket.on('syncTime', (timeLeft) => {
-      clearInterval(this.timer);
-      this.timeLeft = timeLeft;
-      this.gameOver = false;
-      this.startTimer();
+    this.startTimer(); 
+    socket.on("connect", () => {
+      this.scores[socket.id] = { name, wins: 0 };
+      this.buildSidebar();
+      this.startTimer(); 
     });
-  },
+  }
+
+  socket.on('syncTime', (timeLeft) => {
+    clearInterval(this.timer);
+    this.timeLeft = timeLeft;
+    this.gameOver = false;
+    this.startTimer();
+  });
+},
 
   addWin(who) {
     if (this.gameOver) return;
