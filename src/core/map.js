@@ -47,7 +47,6 @@ resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
 
 socket.on('currentPlayers', (players) => {
-  socket.emit('setUsername', _username);
   Object.keys(players).forEach((id) => {
     if (id !== socket.id) {
       otherPlayers[id] = players[id];
@@ -55,6 +54,11 @@ socket.on('currentPlayers', (players) => {
         Leaderboard.addPlayer(id, players[id].name || "Player");
     } else {
       PLAYER.team = players[id].team;
+      if (typeof Leaderboard !== "undefined") {
+        const name = sessionStorage.getItem("username") || "Player";
+        Leaderboard.scores[socket.id] = { name, wins: 0 };
+        Leaderboard.updateSidebar();
+      }
     }
   });
 });
@@ -223,6 +227,8 @@ function updateCamera() {
 }
 
 function gameLoop() {
+  AI.step();
+
   updatePlayer();
   updateCamera();
 
@@ -232,13 +238,12 @@ function gameLoop() {
 
   draw();
   drawZones(ctx);
+
   drawAI();
   drawPlayer();
   drawOtherPlayers();
 
   ctx.restore();
-
-  AI.step();
 
   checkZoneCollision(PLAYER, (gameType) => {
     Minigame.start("player", gameType);
@@ -294,6 +299,9 @@ function showNotification(msg) {
 }
 
 window.addEventListener("load", () => {
+  AI.x = PLAYER.x + 80;
+  AI.y = PLAYER.y;
+
   Leaderboard.init();
   gameLoop();
 });
