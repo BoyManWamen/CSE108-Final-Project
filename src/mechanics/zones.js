@@ -59,7 +59,6 @@ function spawnZone() {
   });
 }
 
-// ✅ spawnZoneNear is now outside checkZoneCollision
 function spawnZoneNear(cx, cy) {
   const range     = 800;
   const type      = ZONE_TYPES[Math.floor(Math.random() * ZONE_TYPES.length)];
@@ -117,8 +116,6 @@ function drawZones(ctx) {
 function checkZoneCollision(entity, onTrigger) {
   zones.forEach(zone => {
     if (!zone.active) return;
-
-    // ✅ only block if it's a player game — AI can still trigger its own
     if (Minigame.active && Minigame.triggeredBy === "player") return;
     if (Minigame.active && Minigame.triggeredBy === "ai") return;
 
