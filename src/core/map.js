@@ -3,7 +3,6 @@ const ctx = canvas.getContext("2d");
 const socket = io();
 
 const _username = sessionStorage.getItem("username") || "Player";
-socket.emit("setUsername", _username);
 
 const otherPlayers = {};
 
@@ -48,6 +47,7 @@ resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
 
 socket.on('currentPlayers', (players) => {
+  socket.emit('setUsername', _username);
   Object.keys(players).forEach((id) => {
     if (id !== socket.id) {
       otherPlayers[id] = players[id];
@@ -63,6 +63,16 @@ socket.on('newPlayer', (playerInfo) => {
   otherPlayers[playerInfo.id] = playerInfo;
   if (typeof Leaderboard !== "undefined")
     Leaderboard.addPlayer(playerInfo.id, playerInfo.name || "Player");
+});
+
+socket.on('playerUpdated', (data) => {
+  if (data.id !== socket.id) {
+    if (otherPlayers[data.id]) otherPlayers[data.id].name = data.name;
+    if (typeof Leaderboard !== "undefined" && Leaderboard.scores[data.id]) {
+      Leaderboard.scores[data.id].name = data.name;
+      Leaderboard.updateSidebar();
+    }
+  }
 });
 
 socket.on('playerMoved', (playerInfo) => {
@@ -87,6 +97,7 @@ socket.on('scoreUpdate', (data) => {
       if (!Leaderboard.scores[data.id]) {
         Leaderboard.scores[data.id] = { name: data.name, wins: 0 };
       }
+      Leaderboard.scores[data.id].name = data.name;
       Leaderboard.scores[data.id].wins = data.wins;
       Leaderboard.updateSidebar();
     }
@@ -248,7 +259,6 @@ function gameLoop() {
     Minigame.start("player", gameType);
   });
   checkZoneCollision(AI, (gameType) => {
-    console.log("AI hit a zone:", gameType);
     Minigame.start("ai", gameType);
   });
 
