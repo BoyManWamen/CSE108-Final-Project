@@ -260,6 +260,7 @@ function gameLoop() {
     Minigame.start("player", gameType);
   });
   checkZoneCollision(AI, (gameType) => {
+    console.log("AI hit a zone:", gameType);
     Minigame.start("ai", gameType);
   });
 
@@ -268,7 +269,7 @@ function gameLoop() {
 
 // ── KEYS ──────────────────────────────────────────────────────────────────
 window.addEventListener("keydown", (e) => {
-  // if (Minigame.active) return;
+  if (document.activeElement?.id === "typing-input") return;
 
   const key = e.key.toLowerCase();
 
