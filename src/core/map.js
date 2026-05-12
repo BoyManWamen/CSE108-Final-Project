@@ -251,6 +251,13 @@ function drawOtherPlayers() {
     ctx.strokeStyle = "rgba(255, 255, 255, 0.75)";
     ctx.stroke();
 
+    const pdx = (typeof p.lastDx === 'number') ? p.lastDx : 0;
+    const pdy = (typeof p.lastDy === 'number') ? p.lastDy : 1;
+    ctx.beginPath();
+    ctx.arc(p.x + pdx * 10, p.y + pdy * 10, 3, 0, Math.PI * 2);
+    ctx.fillStyle = "white";
+    ctx.fill();
+
     ctx.fillStyle = "white";
     ctx.font      = "10px monospace";
     ctx.fillText(p.name || "Player", p.x + 12, p.y - 8);
