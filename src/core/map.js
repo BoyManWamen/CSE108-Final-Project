@@ -21,16 +21,21 @@ const COLORS = ["#23233a", "#444441", "#888780", "#639922", "#E24B4A", "#378ADD"
 let MAP = null;
 
 const PLAYER = {
-  x:      300,
-  y:      120,
-  radius: 8,
-  speed:  2.4,
-  lastDx: 0,
-  lastDy: 1,
-  team:   'blue',
+  x:          300,
+  y:          120,
+  radius:     8,
+  speed:      2.4,
+  lastDx:     0,
+  lastDy:     1,
+  team:       'blue',
+  maxStamina: 100,
+  stamina:    100,
+  sprintMultiplier: 1.8,
+  staminaDrain: 0.75,
+  staminaRegen: 0.3,
 };
 
-const keys = { up: false, down: false, left: false, right: false };
+const keys = { up: false, down: false, left: false, right: false, sprintRequested: false, sprint: false };
 
 function resizeCanvas() {
   canvas.width    = window.innerWidth;
@@ -224,6 +229,16 @@ function drawPlayer() {
   ctx.fillStyle = "white";
   ctx.font      = "10px monospace";
   ctx.fillText(_username, PLAYER.x + 12, PLAYER.y - 8);
+
+  const barW = 40;
+  const barH = 6;
+  const barX = PLAYER.x - barW / 2;
+  const barY = PLAYER.y - PLAYER.radius - 16;
+  ctx.fillStyle = "rgba(0,0,0,0.6)";
+  ctx.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
+  const pct = Math.max(0, Math.min(1, PLAYER.stamina / PLAYER.maxStamina));
+  ctx.fillStyle = "#7bd389";
+  ctx.fillRect(barX, barY, barW * pct, barH);
 }
 
 function drawOtherPlayers() {
@@ -253,13 +268,30 @@ function updatePlayer() {
     const length = Math.hypot(dx, dy);
     dx /= length;
     dy /= length;
-    PLAYER.x     += dx * PLAYER.speed;
-    PLAYER.y     += dy * PLAYER.speed;
+    if (!keys.sprint && keys.sprintRequested && PLAYER.stamina >= PLAYER.maxStamina) {
+      keys.sprint = true;
+    }
+
+    let curSpeed = PLAYER.speed;
+    if (keys.sprint && PLAYER.stamina > 0) {
+      curSpeed *= PLAYER.sprintMultiplier;
+      PLAYER.stamina = Math.max(0, PLAYER.stamina - PLAYER.staminaDrain);
+      if (PLAYER.stamina === 0) keys.sprint = false;
+    } else {
+      PLAYER.stamina = Math.min(PLAYER.maxStamina, PLAYER.stamina + PLAYER.staminaRegen);
+    }
+
+    PLAYER.x     += dx * curSpeed;
+    PLAYER.y     += dy * curSpeed;
     PLAYER.lastDx = dx;
     PLAYER.lastDy = dy;
     socket.emit("playerMovement", {
       x: PLAYER.x, y: PLAYER.y, lastDx: PLAYER.lastDx, lastDy: PLAYER.lastDy,
     });
+  }
+
+  if (dx === 0 && dy === 0 && !keys.sprint) {
+    PLAYER.stamina = Math.min(PLAYER.maxStamina, PLAYER.stamina + PLAYER.staminaRegen);
   }
 
   const mapW = COLS * TILE;
@@ -318,6 +350,7 @@ window.addEventListener("keydown", (e) => {
   if (key === "arrowdown"  || key === "s") { keys.down  = true; e.preventDefault(); }
   if (key === "arrowleft"  || key === "a") { keys.left  = true; e.preventDefault(); }
   if (key === "arrowright" || key === "d") { keys.right = true; e.preventDefault(); }
+  if (key === "shift") { keys.sprintRequested = true; if (PLAYER.stamina >= PLAYER.maxStamina) keys.sprint = true; e.preventDefault(); }
 });
 
 window.addEventListener("keyup", (e) => {
@@ -326,6 +359,7 @@ window.addEventListener("keyup", (e) => {
   if (key === "arrowdown"  || key === "s") keys.down  = false;
   if (key === "arrowleft"  || key === "a") keys.left  = false;
   if (key === "arrowright" || key === "d") keys.right = false;
+  if (key === "shift") { keys.sprintRequested = false; keys.sprint = false; }
 });
 
 function showNotification(msg) {
