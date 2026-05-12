@@ -33,9 +33,9 @@ const Leaderboard = {
     this.updateSidebar();
   },
 
-  addPlayer(id, name) {
+ addPlayer(id, name, initialWins = 0) {
     if (id === socket.id) return;
-    if (!this.scores[id]) this.scores[id] = { name: name || "Player", wins: 0 };
+    if (!this.scores[id]) this.scores[id] = { name: name || "Player", wins: initialWins };
     this.updateSidebar();
   },
 

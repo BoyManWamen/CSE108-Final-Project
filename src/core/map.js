@@ -66,14 +66,14 @@ socket.on("currentPlayers", (players) => {
     if (id !== socket.id) {
       otherPlayers[id] = players[id];
       if (typeof Leaderboard !== "undefined")
-        Leaderboard.addPlayer(id, players[id].name || "Player");
+        Leaderboard.addPlayer(id, players[id].name || "Player", players[id].score || 0); 
     } else {
       PLAYER.team = players[id].team;
       PLAYER.x    = players[id].x;
       PLAYER.y    = players[id].y;
       if (typeof Leaderboard !== "undefined") {
         const name = sessionStorage.getItem("username") || "Player";
-        Leaderboard.scores[socket.id] = { name, wins: 0 };
+        Leaderboard.scores[socket.id] = { name, wins: players[id].score || 0 };
         Leaderboard.updateSidebar();
       }
     }
@@ -83,7 +83,14 @@ socket.on("currentPlayers", (players) => {
 socket.on("newPlayer", (playerInfo) => {
   otherPlayers[playerInfo.id] = playerInfo;
   if (typeof Leaderboard !== "undefined")
-    Leaderboard.addPlayer(playerInfo.id, playerInfo.name || "Player");
+    Leaderboard.addPlayer(playerInfo.id, playerInfo.name || "Player", playerInfo.score || 0);
+});
+
+socket.on("syncAIWins", (aiWins) => {
+  if (typeof Leaderboard !== "undefined") {
+    Leaderboard.aiWins = aiWins;
+    Leaderboard.updateSidebar();
+  }
 });
 
 socket.on("playerUpdated", (data) => {

@@ -101,15 +101,15 @@ app.get('/api/leaderboard', async (_req, res) => {
 });
 
 const TILE = 20;
-const COLS = 100;
-const ROWS = 60;
+let COLS = 100;
+let ROWS = 60;
 
-const MAP_W = COLS * TILE;
-const MAP_H = ROWS * TILE;
+let MAP_W = COLS * TILE;
+let MAP_H = ROWS * TILE;
 
 const GAME_DURATION          = 120;
-const ZONE_COUNT             = 6;
-const ZONE_RADIUS            = 16;
+let ZONE_COUNT             = 6;
+let ZONE_RADIUS            = 16;
 const ZONE_RESPAWN_MS        = 3000;
 const MIN_ZONE_DISTANCE      = 80;
 const ZONE_ACTIVATE_DISTANCE = 600;
@@ -139,6 +139,43 @@ let gameTimerInterval = null;
 function getTimeLeft() {
   const elapsed = Math.floor((Date.now() - gameStartTime) / 1000);
   return Math.max(0, GAME_DURATION - elapsed);
+}
+
+function updateGameScale() {
+  const numHumans = Math.max(1, Object.keys(players).length);
+  
+  const scaleTier = numHumans - 1; 
+  
+  COLS = 100 + (scaleTier * 10); 
+  ROWS = 60 + (scaleTier * 6);  
+  MAP_W = COLS * TILE;
+  MAP_H = ROWS * TILE;
+  
+  io.emit('mapConfig', { TILE, COLS, ROWS });
+
+  TARGET_ENTITIES = 15 + (scaleTier * 2); 
+  adjustBotCount();
+
+  ZONE_COUNT = 6 + (scaleTier * 1);
+  adjustZones();
+}
+
+function adjustZones() {
+  while (zones.length < ZONE_COUNT) {
+    spawnZoneNear(MAP_W / 2 + (Math.random() - 0.5) * MAP_W * 0.7,
+                  MAP_H / 2 + (Math.random() - 0.5) * MAP_H * 0.7);
+  }
+  
+  while (zones.length > ZONE_COUNT) {
+    const indexToRemove = zones.findIndex(z => z.active);
+    if (indexToRemove !== -1) {
+      zones.splice(indexToRemove, 1);
+    } else {
+      break; 
+    }
+  }
+  
+  emitZones();
 }
 
 function startGameTimer() {
@@ -290,7 +327,7 @@ class AIBot  {
 };
 
 const aiBots = [];
-const TARGET_ENTITIES = 15;
+let TARGET_ENTITIES = 15;
 const MIN_BOTS = 3;
 const BOT_FADE_DURATION_MS = 1000;
 
@@ -298,15 +335,19 @@ function adjustBotCount() {
   const numPlayers = Object.keys(players).length;
   const targetBots = Math.max(MIN_BOTS, TARGET_ENTITIES - numPlayers);
 
-  while (aiBots.length < targetBots) {
+  let activeBots = aiBots.filter(b => !b.markedForDeletion).length;
+
+  while (activeBots < targetBots) {
     const randomId = `ai_${Math.random().toString(36).substr(2, 6)}`;
     aiBots.push(new AIBot(randomId));
+    activeBots++; 
   }
   
-  while (aiBots.length > targetBots) {
+  while (activeBots > targetBots) {
     const bot = [...aiBots].reverse().find(candidate => !candidate.markedForDeletion);
     if (!bot) break;
     bot.markForDeletion();
+    activeBots--;
   }
 }
 
@@ -440,12 +481,13 @@ io.on('connection', (socket) => {
     name:   'Player',
   };
   adjustBotCount();
-
+  updateGameScale();
   initializeZones();
   socket.emit('currentPlayers', players);
-  // socket.emit('aiState', { x: AI.x, y: AI.y, angle: AI.angle, team: AI.team });
   socket.emit('syncTime', getTimeLeft());
   socket.emit('mapConfig', { TILE, COLS, ROWS });
+
+  socket.emit('syncAIWins', globalAIWins);
 
   socket.on('setUsername', (name) => {
     if (!players[socket.id]) return;
@@ -491,6 +533,7 @@ io.on('connection', (socket) => {
     delete players[socket.id];
     io.emit('playerDisconnected', socket.id);
     adjustBotCount();
+    updateGameScale();
   });
 });
 
