@@ -165,18 +165,21 @@ function resetScores() {
   io.emit('scoresReset');
 }
 
-const AI = {
-  x:              MAP_W / 2,
-  y:              MAP_H / 2,
-  team:           'red',
-  angle:          0,
-  speed:          2.5,
-  targetX:        MAP_W / 2,
-  targetY:        MAP_H / 2,
-  waypointX:      null,
-  waypointY:      null,
-  waypointRadius: 15,
-  hitZoneCooldown: 0,
+class AIBot  {
+  constructor(id) {
+    this.id = id;
+    this.x = MAP_W / 2 + (Math.random() * 100 - 50);
+    this.y = MAP_H / 2 + (Math.random() * 100 - 50);
+    this.team = Math.random() > 0.5 ? 'red' : 'blue';
+    this.angle = 0;
+    this.speed = 2.0 + Math.random();
+    this.targetX = MAP_W / 2;
+    this.targetY = MAP_H / 2;
+    this.waypointX = null;
+    this.waypointY = null;
+    this.waypointRadius = 15;
+    this.hitZoneCooldown = 0;
+  }
 
   think() {
     if (this.hitZoneCooldown > 0) { this.hitZoneCooldown--; return; }
@@ -200,7 +203,7 @@ const AI = {
     if (atWaypoint) this.setWaypoint();
     this.targetX = this.waypointX;
     this.targetY = this.waypointY;
-  },
+  }
 
   setWaypoint() {
     let wx, wy;
@@ -210,7 +213,7 @@ const AI = {
     } while (Math.hypot(wx - this.x, wy - this.y) < 100);
     this.waypointX = wx;
     this.waypointY = wy;
-  },
+  }
 
   move() {
     const dx   = this.targetX - this.x;
@@ -223,7 +226,7 @@ const AI = {
     this.angle = Math.atan2(dy, dx);
     this.x = Math.max(10, Math.min(this.x, MAP_W - 10));
     this.y = Math.max(10, Math.min(this.y, MAP_H - 10));
-  },
+  }
 
   step() {
     this.think();
@@ -244,12 +247,31 @@ const AI = {
         }, 1500 + Math.random() * 2000);
       }
     });
-  },
+  }
 };
 
+const NUM_AIS = 10;
+const aiBots = [];
+
+for (let i = 0; i < NUM_AIS; i++) {
+  aiBots.push(new AIBot(`ai_${i}`));
+}
+
 setInterval(() => {
-  AI.step();
-  io.emit('aiMoved', { x: AI.x, y: AI.y, angle: AI.angle, team: AI.team });
+  const aiUpdates = [];
+  
+  aiBots.forEach(bot => {
+    bot.step();
+    aiUpdates.push({
+      id: bot.id,
+      x: Math.round(bot.x),
+      y: Math.round(bot.y),
+      angle: Number(bot.angle.toFixed(2)),
+      team: bot.team
+    });
+  });
+
+  io.emit('aisMoved', aiUpdates); 
 }, 1000 / 30);
 
 function clampZonePosition(x, y) {
@@ -356,7 +378,7 @@ io.on('connection', (socket) => {
 
   initializeZones();
   socket.emit('currentPlayers', players);
-  socket.emit('aiState', { x: AI.x, y: AI.y, angle: AI.angle, team: AI.team });
+  // socket.emit('aiState', { x: AI.x, y: AI.y, angle: AI.angle, team: AI.team });
   socket.emit('syncTime', getTimeLeft());
   socket.emit('mapConfig', { TILE, COLS, ROWS });
 

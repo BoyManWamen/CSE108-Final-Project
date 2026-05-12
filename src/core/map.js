@@ -4,6 +4,7 @@ const socket = io();
 
 const _username    = sessionStorage.getItem("username") || "Player";
 const otherPlayers = {};
+const AIBots = {};
 
 let TILE = 20;
 let COLS = 100;
@@ -118,12 +119,10 @@ socket.on("scoreUpdate", (data) => {
   Leaderboard.updateSidebar();
 });
 
-socket.on("aiState", (data) => {
-  AI.x = data.x; AI.y = data.y; AI.angle = data.angle; AI.team = data.team;
-});
-
-socket.on("aiMoved", (data) => {
-  AI.x = data.x; AI.y = data.y; AI.angle = data.angle;
+socket.on("aisMoved", (aiArray) => {
+  aiArray.forEach(data => {
+    AIBots[data.id] = data; 
+  });
 });
 
 socket.on("aiMinigameResult", (data) => {
@@ -200,20 +199,22 @@ function draw() {
   ctx.setLineDash([]);
 }
 
-function drawAI() {
-  ctx.beginPath();
-  ctx.arc(AI.x, AI.y, 8, 0, Math.PI * 2);
-  ctx.fillStyle = AI.team === "red" ? "#E24B4A" : "#378ADD";
-  ctx.fill();
+function drawAIs() {
+  Object.values(AIBots).forEach(ai => {
+    ctx.beginPath();
+    ctx.arc(ai.x, ai.y, 8, 0, Math.PI * 2);
+    ctx.fillStyle = ai.team === "red" ? "#E24B4A" : "#378ADD";
+    ctx.fill();
 
-  ctx.beginPath();
-  ctx.arc(AI.x + Math.cos(AI.angle) * 10, AI.y + Math.sin(AI.angle) * 10, 3, 0, Math.PI * 2);
-  ctx.fillStyle = "white";
-  ctx.fill();
+    ctx.beginPath();
+    ctx.arc(ai.x + Math.cos(ai.angle) * 10, ai.y + Math.sin(ai.angle) * 10, 3, 0, Math.PI * 2);
+    ctx.fillStyle = "white";
+    ctx.fill();
 
-  ctx.fillStyle = "white";
-  ctx.font      = "10px monospace";
-  ctx.fillText("🤖 AI", AI.x + 12, AI.y - 8);
+    ctx.fillStyle = "white";
+    ctx.font      = "10px monospace";
+    ctx.fillText("🤖 AI", ai.x + 12, ai.y - 8);
+  });
 }
 
 function drawPlayer() {
@@ -363,7 +364,7 @@ function gameLoop() {
 
   draw();
   if (typeof drawZones === "function") drawZones(ctx);
-  drawAI();
+  drawAIs();
   drawPlayer();
   drawOtherPlayers();
 
