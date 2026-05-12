@@ -33,6 +33,10 @@ const PLAYER = {
   sprintMultiplier: 1.8,
   staminaDrain: 0.75,
   staminaRegen: 0.3,
+  staminaBarAlpha: 1,
+  staminaFullTime: 0,
+  staminaBarHoldDuration: 800,
+  staminaBarFadeDuration: 600,
 };
 
 const keys = { up: false, down: false, left: false, right: false, sprintRequested: false, sprint: false };
@@ -234,10 +238,12 @@ function drawPlayer() {
   const barH = 6;
   const barX = PLAYER.x - barW / 2;
   const barY = PLAYER.y - PLAYER.radius - 16;
-  ctx.fillStyle = "rgba(0,0,0,0.6)";
+  const bgAlpha = 0.6 * PLAYER.staminaBarAlpha;
+  ctx.fillStyle = `rgba(0,0,0,${bgAlpha})`;
   ctx.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
   const pct = Math.max(0, Math.min(1, PLAYER.stamina / PLAYER.maxStamina));
-  ctx.fillStyle = "#7bd389";
+  const barAlpha = PLAYER.staminaBarAlpha;
+  ctx.fillStyle = `rgba(123,211,137,${barAlpha})`;
   ctx.fillRect(barX, barY, barW * pct, barH);
 }
 
@@ -299,6 +305,26 @@ function updatePlayer() {
 
   if (dx === 0 && dy === 0 && !keys.sprint) {
     PLAYER.stamina = Math.min(PLAYER.maxStamina, PLAYER.stamina + PLAYER.staminaRegen);
+  }
+
+  const now = Date.now();
+  if (PLAYER.stamina >= PLAYER.maxStamina) {
+    if (PLAYER.staminaFullTime === 0) {
+      PLAYER.staminaFullTime = now;
+      PLAYER.staminaBarAlpha = 1;
+    }
+    const elapsed = now - PLAYER.staminaFullTime;
+    const holdDuration = PLAYER.staminaBarHoldDuration;
+    const fadeDuration = PLAYER.staminaBarFadeDuration;
+    if (elapsed < holdDuration) {
+      PLAYER.staminaBarAlpha = 1;
+    } else {
+      const fadeElapsed = elapsed - holdDuration;
+      PLAYER.staminaBarAlpha = Math.max(0, 1 - (fadeElapsed / fadeDuration));
+    }
+  } else {
+    PLAYER.staminaFullTime = 0;
+    PLAYER.staminaBarAlpha = 1;
   }
 
   const mapW = COLS * TILE;
