@@ -120,8 +120,17 @@ socket.on("scoreUpdate", (data) => {
 });
 
 socket.on("aisMoved", (aiArray) => {
+  const activeAiIds = new Set();
+  
   aiArray.forEach(data => {
     AIBots[data.id] = data; 
+    activeAiIds.add(data.id);
+  });
+
+  Object.keys(AIBots).forEach(id => {
+    if (!activeAiIds.has(id)) {
+      delete AIBots[id];
+    }
   });
 });
 
@@ -201,6 +210,10 @@ function draw() {
 
 function drawAIs() {
   Object.values(AIBots).forEach(ai => {
+    const alpha = typeof ai.alpha === "number" ? ai.alpha : 1;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
     ctx.beginPath();
     ctx.arc(ai.x, ai.y, 8, 0, Math.PI * 2);
     ctx.fillStyle = ai.team === "red" ? "#E24B4A" : "#378ADD";
@@ -214,6 +227,8 @@ function drawAIs() {
     ctx.fillStyle = "white";
     ctx.font      = "10px monospace";
     ctx.fillText("🤖 AI", ai.x + 12, ai.y - 8);
+
+    ctx.restore();
   });
 }
 

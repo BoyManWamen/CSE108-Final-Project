@@ -4,6 +4,7 @@ const { Server } = require('socket.io');
 const path       = require('path');
 const crypto     = require('crypto');
 const { Pool }   = require('pg');
+const { glob } = require('fs');
 
 const app    = express();
 const server = http.createServer(app);
@@ -128,6 +129,9 @@ const players  = {};
 const zones    = [];
 let nextZoneId = 1;
 
+let globalHumanWins = 0;
+let globalAIWins = 0;
+
 let gameStartTime = Date.now();
 let gameOver      = false;
 let gameTimerInterval = null;
@@ -162,6 +166,8 @@ function startGameTimer() {
 
 function resetScores() {
   Object.values(players).forEach(p => { p.score = 0; });
+  globalHumanWins = 0;
+  globalAIWins = 0;
   io.emit('scoresReset');
 }
 
@@ -179,6 +185,22 @@ class AIBot  {
     this.waypointY = null;
     this.waypointRadius = 15;
     this.hitZoneCooldown = 0;
+    this.markedForDeletion = false;
+    this.deletionStartedAt = null;
+  }
+
+  markForDeletion() {
+    this.markedForDeletion = true;
+  }
+
+  getAlpha(now = Date.now()) {
+    if (this.deletionStartedAt === null) return 1;
+    const elapsed = now - this.deletionStartedAt;
+    return Math.max(0, 1 - (elapsed / BOT_FADE_DURATION_MS));
+  }
+
+  isReadyForRemoval(now = Date.now()) {
+    return this.deletionStartedAt !== null && (now - this.deletionStartedAt) >= BOT_FADE_DURATION_MS;
   }
 
   think() {
@@ -229,6 +251,12 @@ class AIBot  {
   }
 
   step() {
+    if (this.markedForDeletion && this.deletionStartedAt === null && this.hitZoneCooldown === 0) {
+      this.deletionStartedAt = Date.now();
+    }
+
+    if (this.deletionStartedAt !== null) return;
+
     this.think();
     this.move();
 
@@ -240,7 +268,18 @@ class AIBot  {
         emitZones();
         this.hitZoneCooldown = 90;
 
-        const aiWon = Math.random() < 0.7;
+        const numPlayers = Math.max(1, Object.keys(players).length);
+        const humanAvg = globalHumanWins / numPlayers;
+        const aiAvg = globalAIWins / aiBots.length;
+        const scoreDiff = humanAvg - aiAvg;
+        let winProb = 0.5 + (scoreDiff * 0.04);
+        winProb = Math.max(0.15, Math.min(0.85, winProb));
+
+        const aiWon = Math.random() < winProb;
+        if (aiWon) {
+          globalAIWins++
+        }
+
         setTimeout(() => {
           io.emit('aiMinigameResult', { won: aiWon });
           setTimeout(() => respawnZone(zone), ZONE_RESPAWN_MS);
@@ -250,15 +289,32 @@ class AIBot  {
   }
 };
 
-const NUM_AIS = 10;
 const aiBots = [];
+const TARGET_ENTITIES = 15;
+const MIN_BOTS = 3;
+const BOT_FADE_DURATION_MS = 1000;
 
-for (let i = 0; i < NUM_AIS; i++) {
-  aiBots.push(new AIBot(`ai_${i}`));
+function adjustBotCount() {
+  const numPlayers = Object.keys(players).length;
+  const targetBots = Math.max(MIN_BOTS, TARGET_ENTITIES - numPlayers);
+
+  while (aiBots.length < targetBots) {
+    const randomId = `ai_${Math.random().toString(36).substr(2, 6)}`;
+    aiBots.push(new AIBot(randomId));
+  }
+  
+  while (aiBots.length > targetBots) {
+    const bot = [...aiBots].reverse().find(candidate => !candidate.markedForDeletion);
+    if (!bot) break;
+    bot.markForDeletion();
+  }
 }
+
+adjustBotCount();
 
 setInterval(() => {
   const aiUpdates = [];
+  const now = Date.now();
   
   aiBots.forEach(bot => {
     bot.step();
@@ -267,9 +323,17 @@ setInterval(() => {
       x: Math.round(bot.x),
       y: Math.round(bot.y),
       angle: Number(bot.angle.toFixed(2)),
-      team: bot.team
+      team: bot.team,
+      markedForDeletion: bot.markedForDeletion,
+      alpha: bot.getAlpha(now),
     });
   });
+
+  for (let i = aiBots.length - 1; i >= 0; i--) {
+    if (aiBots[i].isReadyForRemoval(now)) {
+      aiBots.splice(i, 1);
+    }
+  }
 
   io.emit('aisMoved', aiUpdates); 
 }, 1000 / 30);
@@ -375,6 +439,7 @@ io.on('connection', (socket) => {
     score:  0,
     name:   'Player',
   };
+  adjustBotCount();
 
   initializeZones();
   socket.emit('currentPlayers', players);
@@ -405,6 +470,7 @@ io.on('connection', (socket) => {
 
   socket.on('minigameWin', async (data) => {
     if (gameOver) return;
+    globalHumanWins++;
     try {
       await pool.query(
         'UPDATE users SET total_wins = total_wins + 1 WHERE username = $1',
@@ -424,6 +490,7 @@ io.on('connection', (socket) => {
     console.log('Player disconnected:', socket.id);
     delete players[socket.id];
     io.emit('playerDisconnected', socket.id);
+    adjustBotCount();
   });
 });
 
